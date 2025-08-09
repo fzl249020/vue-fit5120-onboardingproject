@@ -9,6 +9,8 @@ const routes = [
   { path: '/contact', component: Contact },
   { path: '/features', component: Feature },
   { path: '/about', component: About },
+  { path: '/features/car-ownership', component: () => import('../views/car_ownership.vue') },
+  { path: '/features/cbd-population', component: () => import('../views/cbd_population.vue') },
 ]
 
 const router = createRouter({
