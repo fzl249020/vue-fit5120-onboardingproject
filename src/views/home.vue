@@ -1,5 +1,9 @@
 <template>
-  <div class="relative min-h-screen bg-cover bg-center" style="background-image: url('/images/city.png');">
+  <div
+    class="min-h-screen bg-cover bg-center relative"
+    :style="{ backgroundImage: `url(${import.meta.env.BASE_URL}images/user.png)` }"
+  >
+
     <!-- 遮罩层 -->
     <div class="absolute inset-0 bg-black bg-opacity-50 z-0"></div>
 
