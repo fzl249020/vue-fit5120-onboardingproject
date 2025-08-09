@@ -1,6 +1,3 @@
-<script setup>
-const bgFeature = new URL('../assets/feature.png', import.meta.url).href
-</script>
 <template>
   <div
     class="min-h-screen bg-cover bg-center relative"
@@ -49,6 +46,7 @@ const bgFeature = new URL('../assets/feature.png', import.meta.url).href
 import * as echarts from 'echarts'
 import { ref, watch, onMounted } from 'vue'
 
+const bgFeature = new URL('../assets/feature.png', import.meta.url).href
 const selectedGraph = ref('line')
 const explanationText = ref('')
 
