@@ -1,9 +1,9 @@
-<template>
-  <div
-    class="min-h-screen bg-cover bg-center relative"
-    :style="{ backgroundImage: `url(${import.meta.env.BASE_URL}images/user.png)` }"
-  >
+<script setup>
+const bgCity = new URL('../assets/city.png', import.meta.url).href
+</script>
 
+<template>
+  <div class="relative min-h-screen bg-cover bg-center" :style="{ backgroundImage: `url(${bgCity})` }">
     <!-- 遮罩层 -->
     <div class="absolute inset-0 bg-black bg-opacity-50 z-0"></div>
 
