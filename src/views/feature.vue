@@ -46,7 +46,7 @@
 import * as echarts from 'echarts'
 import { ref, watch, onMounted } from 'vue'
 
-const bgFeature = new URL('../assets/feature.png', import.meta.url).href
+const bgFeature = new URL('@/assets/feature.png', import.meta.url).href
 const selectedGraph = ref('line')
 const explanationText = ref('')
 

@@ -5,4 +5,7 @@ import vue from '@vitejs/plugin-vue'
 export default defineConfig({
   plugins: [vue()],
   base: '/vue-fit5120-onboardingproject/',
+  resolve: {
+    alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) }
+  },
 })
