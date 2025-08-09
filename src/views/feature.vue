@@ -43,7 +43,7 @@
 </template>
 
 <script setup>
-const bgFeature = new URL('../assets/city.png', import.meta.url).href
+const bgFeature = new URL('../assets/feature.png', import.meta.url).href
 import * as echarts from 'echarts'
 import { ref, watch, onMounted } from 'vue'
 
