@@ -1,6 +1,3 @@
-<script setup>
-const bgUser = new URL('../assets/user.png', import.meta.url).href
-</script>
 <template>
   <div
     class="min-h-screen bg-cover bg-center relative"
@@ -44,6 +41,7 @@ const bgUser = new URL('../assets/user.png', import.meta.url).href
 </template>
 
 <script setup>
+const bgUser = new URL('../assets/user.png', import.meta.url).href
 const sections = [
   {
     title: 'Our Mission',
