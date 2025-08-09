@@ -1,3 +1,6 @@
+<script setup>
+const bgContact = new URL('../assets/contact.png', import.meta.url).href
+</script>
 <template>
   <section class="min-h-[70vh] flex flex-col bg-gray-50">
     <!-- 背景大图 + 标题（改进版） -->
@@ -5,7 +8,7 @@
       <!-- 背景图（带模糊） -->
       <div
         class="absolute inset-0 bg-cover bg-center"
-        style="background-image:url('/images/contact.png'); filter: blur(2px);"
+        :style="{ backgroundImage: `url(${bgContact})`, filter: 'blur(2px)' }"
       ></div>
 
       <!-- 半透明黑色遮罩 -->

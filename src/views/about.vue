@@ -1,7 +1,10 @@
+<script setup>
+const bgUser = new URL('../assets/user.png', import.meta.url).href
+</script>
 <template>
   <div
     class="min-h-screen bg-cover bg-center relative"
-    style="background-image: url('/images/user.png');"
+    :style="{ backgroundImage: `url(${bgUser})` }"
   >
     <!-- 遮罩层 -->
     <div class="absolute inset-0 bg-black opacity-40 z-0"></div>

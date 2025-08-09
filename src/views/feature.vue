@@ -1,7 +1,10 @@
+<script setup>
+const bgFeature = new URL('../assets/feature.png', import.meta.url).href
+</script>
 <template>
   <div
     class="min-h-screen bg-cover bg-center relative"
-    style="background-image: url('/images/feature.png');"
+    :style="{ backgroundImage: `url(${bgFeature})` }"
   >
     <!-- 遮罩层 -->
     <div class="absolute inset-0 bg-black opacity-60 z-0"></div>
