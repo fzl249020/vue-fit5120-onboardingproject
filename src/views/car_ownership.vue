@@ -1,60 +1,48 @@
 <template>
   <section class="max-w-5xl mx-auto px-4 py-10">
+    <breadcrumbs :items="crumbs" />
     <h1 class="text-2xl md:text-3xl font-bold mb-6">Car Ownership Trends</h1>
 
-    <!-- 图表：居中 -->
     <div class="flex justify-center">
-      <div ref="chartEl" class="w-full max-w-3xl h-[380px] rounded-xl border bg-white shadow-sm"></div>
+      <linechart :values="quarterly" class="w-full max-w-3xl" />
     </div>
 
-    <!-- 解释：图表下方 -->
+    <!-- 免责声明（12px / 斜体 / 浅灰 / 与主内容相隔 16px） -->
+    <p class="mt-4 text-xs italic text-gray-400 max-w-3xl mx-auto">
+      Quarterly data is an estimation based on annual figures.
+    </p>
+
     <article class="mt-8 prose prose-gray max-w-3xl mx-auto">
-      <p>
-        This line graph shows changes in car ownership across recent periods.
-        Replace the sample data with your real dataset.
-      </p>
+      <p>This line graph shows changes in car ownership. Replace the sample data with your real dataset.</p>
     </article>
   </section>
 </template>
 
 <script setup>
-import * as echarts from 'echarts'
-import { onMounted, onBeforeUnmount, ref } from 'vue'
+import breadcrumbs from '../components/breadcrumbs.vue'
+import linechart from '../components/linechart.vue'
 
-const chartEl = ref(null)
-let chart
+// 面包屑
+const crumbs = [
+  { text: 'Home', href: '/' },
+  { text: 'Features' }, // 你没有 /features 页面，就不加 href
+  { text: 'Car Ownership Trends' }
+]
 
-const initChart = () => {
-  chart = echarts.init(chartEl.value)
-  chart.setOption({
-    tooltip: { trigger: 'axis' },
-    grid: { left: 40, right: 20, top: 30, bottom: 40 },
-    xAxis: {
-      type: 'category',
-      boundaryGap: false,
-      data: ['2019', '2020', '2021', '2022', '2023', '2024', '2025']
-    },
-    yAxis: { type: 'value', name: 'Cars / 1k residents' },
-    series: [{
-      name: 'Ownership',
-      type: 'line',
-      smooth: true,
-      symbol: 'circle',
-      areaStyle: { opacity: 0.15 },
-      data: [540, 555, 570, 565, 575, 590, 600] // TODO: 替换为真实数据
-    }]
-  })
-}
+// —— 示例：用“年度值”做线性插值生成季度数据（24 个点 Q1'16~Q4'21）——
+const annual = { 2016: 140000, 2017: 145000, 2018: 150000, 2019: 158000, 2020: 165000, 2021: 172000 }
 
-const resize = () => chart && chart.resize()
-
-onMounted(() => {
-  initChart()
-  window.addEventListener('resize', resize)
-})
-
-onBeforeUnmount(() => {
-  window.removeEventListener('resize', resize)
-  chart && chart.dispose()
-})
+const quarterly = (() => {
+  const arr = []
+  const years = [2016, 2017, 2018, 2019, 2020, 2021]
+  for (let i = 0; i < years.length; i++) {
+    const y = years[i]
+    const next = i < years.length - 1 ? years[i + 1] : y
+    const start = annual[y]
+    const end = annual[next]
+    const step = (end - start) / 4
+    for (let q = 0; q < 4; q++) arr.push(Math.round(start + step * q))
+  }
+  return arr
+})()
 </script>

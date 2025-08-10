@@ -1,13 +1,12 @@
 <template>
   <section class="max-w-5xl mx-auto px-4 py-10">
+    <breadcrumbs :items="crumbs" />
     <h1 class="text-2xl md:text-3xl font-bold mb-6">CBD Population Trends</h1>
 
-    <!-- 图表：居中 -->
     <div class="flex justify-center">
       <div ref="chartEl" class="w-full max-w-3xl h-[420px] rounded-xl border bg-white shadow-sm"></div>
     </div>
 
-    <!-- 解释：图表下方 -->
     <article class="mt-8 prose prose-gray max-w-3xl mx-auto">
       <p>
         The heatmap visualizes relative population intensity across time.
@@ -20,11 +19,17 @@
 <script setup>
 import * as echarts from 'echarts'
 import { onMounted, onBeforeUnmount, ref } from 'vue'
+import breadcrumbs from '../components/breadcrumbs.vue'
+
+const crumbs = [
+  { text: 'Home', href: '/' },
+  { text: 'Features' },
+  { text: 'CBD Population Trends' }
+]
 
 const chartEl = ref(null)
 let chart
 
-// 示例数据：Day × Hour
 const hours = Array.from({ length: 24 }, (_, i) => `${i}:00`)
 const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
 const sample = []
@@ -41,8 +46,8 @@ const initChart = () => {
   chart.setOption({
     tooltip: { position: 'top' },
     grid: { left: 80, right: 30, top: 30, bottom: 50 },
-    xAxis: { type: 'category', data: hours, splitArea: { show: true }, axisLabel: { interval: 2 } },
-    yAxis: { type: 'category', data: days, splitArea: { show: true } },
+    xAxis: { type: 'category', data: hours, splitArea: { show: true }, axisLabel: { interval: 2, color: '#9CA3AF' } },
+    yAxis: { type: 'category', data: days, splitArea: { show: true }, axisLabel: { color: '#9CA3AF' } },
     visualMap: { min: 0, max: 100, calculable: true, orient: 'horizontal', left: 'center', bottom: 10 },
     series: [{
       name: 'Population intensity',
@@ -55,14 +60,6 @@ const initChart = () => {
 }
 
 const resize = () => chart && chart.resize()
-
-onMounted(() => {
-  initChart()
-  window.addEventListener('resize', resize)
-})
-
-onBeforeUnmount(() => {
-  window.removeEventListener('resize', resize)
-  chart && chart.dispose()
-})
+onMounted(() => { initChart(); window.addEventListener('resize', resize) })
+onBeforeUnmount(() => { window.removeEventListener('resize', resize); chart && chart.dispose() })
 </script>

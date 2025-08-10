@@ -37,6 +37,13 @@
               <router-link to="/features/cbd-population" class="block px-4 py-3 hover:bg-gray-50">
                 CBD Population Trends
               </router-link>
+              <router-link to="/features/predictive-forecast" class="block px-4 py-3 hover:bg-gray-50">
+                Predictive Forecast
+              </router-link>
+              <router-link to="/features/parking-history" class="block px-4 py-3 hover:bg-gray-50">
+                Parking History
+              </router-link>
+
             </div>
           </li>
 
