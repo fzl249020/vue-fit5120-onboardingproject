@@ -1,6 +1,6 @@
 <template>
   <label class="inline-flex items-center gap-2 select-none cursor-pointer text-sm">
-    <!-- 可访问性：原生 checkbox -->
+    <!-- accessibility: native checkbox -->
     <input
       type="checkbox"
       class="sr-only peer"
@@ -11,7 +11,7 @@
       :aria-label="ariaLabel || label || 'Toggle'"
     />
 
-    <!-- 轨道 + 圆点（伪元素） -->
+    <!-- track + thumb (pseudo-elements) -->
     <span
       class="relative inline-flex w-11 h-6 rounded-full
              bg-gray-300 peer-checked:bg-blue-600

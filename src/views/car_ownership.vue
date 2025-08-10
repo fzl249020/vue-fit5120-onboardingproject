@@ -8,7 +8,7 @@
         {{ chartTitle }}
       </h1>
       <div class="flex items-center gap-3">
-        <!-- Compare：切换开关（组件版，带动画） -->
+        <!-- Compare：switch with label -->
         <ToggleSwitch v-model="compare" label="Compare" />
 
         <!-- Share button -->
@@ -65,7 +65,7 @@ import linechart from '../components/linechart.vue'
 import ToggleSwitch from '../components/ToggleSwitch.vue'
 import { getVicQuarterly } from '../api/vehicle'
 
-/** 标题（用于导出图片中的图内标题） */
+/** Chart Title */
 const chartTitle = 'Quarterly Car Ownership Trends: Melbourne (2016–2021)'
 
 /** Breadcrumbs */
@@ -76,14 +76,14 @@ const crumbs = [
   { text: 'Car Ownership Trends' }
 ]
 
-/** 工具：本地回退时生成季度标签 Q1-2016 … Q4-2021 */
+/** tool: buildLabels */
 const buildLabels = () => {
   const out = []
   for (let y = 2016; y <= 2021; y++) for (let q = 1; q <= 4; q++) out.push(`Q${q}-${y}`)
   return out
 }
 
-/** 季节权重（仅回退用） */
+/** Seasonal weights (for fallback use only) */
 const weightsForYear = (y) => {
   if (y === 2020) return [0.28, 0.18, 0.18, 0.36]
   if (y === 2021) return [0.30, 0.27, 0.22, 0.21]
@@ -91,11 +91,11 @@ const weightsForYear = (y) => {
   return [0.25, 0.25, 0.25, 0.25]
 }
 
-/** 年度 YoY%（仅回退用） */
+/** annual YoY%（for fallback use only） */
 const CAR_YOY = { 2016: 0.020, 2017: 0.025, 2018: 0.023, 2019: 0.028, 2020: -0.018, 2021: 0.035 }
 const POP_YOY = { 2016: 0.018, 2017: 0.022, 2018: 0.021, 2019: 0.015, 2020: -0.010, 2021: 0.012 }
 
-/** 本地回退：指数与“估算新增”生成（2016Q1=100） */
+/** local fallback: build indexed series from annual YoY% */
 function buildIndexedSeries(annualYoY, baseIndex = 100, baseAbs = 2000000) {
   const data = []
   let idx = baseIndex
@@ -115,11 +115,11 @@ function buildIndexedSeries(annualYoY, baseIndex = 100, baseAbs = 2000000) {
   return data
 }
 
-/** —— 使用后端返回的结构进行映射 —— */
+/** —— use backend structure —— */
 function fromApi(rows) {
   if (!Array.isArray(rows) || rows.length !== 24) return null
   const sorted = [...rows].sort((a, b) => a.year - b.year || a.quarter - b.quarter)
-  const labels = sorted.map(r => r.quarter_label) // 例如 'Q1-2016'
+  const labels = sorted.map(r => r.quarter_label) // e.g. 'Q1-2016'
   const data = sorted.map(r => ({
     index: +Number(r.index_val).toFixed(2),
     added: Number(r.est_added_vehicles) || 0
@@ -127,16 +127,16 @@ function fromApi(rows) {
   return { labels, data }
 }
 
-/** 状态 */
+/** status */
 const CACHE_KEY = 'vic-car-pop-index-2016-2021-v1'
-const labels = ref(buildLabels())  // 默认先用本地标签；拿到 API 后会替换
+const labels = ref(buildLabels())  // use fallback labels
 const compare = ref(false)
 const chartRef = ref(null)
 const sharing = ref(false)
 const carData = ref([])
 const popData = ref([])
 
-/** 加载数据（优先 API，失败回退本地） */
+/** Load data (prefer API, fallback to local) */
 onMounted(async () => {
   try {
     const res = await getVicQuarterly({ region: 'VIC', from: '2016Q1', to: '2021Q4' })
@@ -147,7 +147,7 @@ onMounted(async () => {
 
     labels.value = mapped.labels
     carData.value = mapped.data
-    // 临时人口对比：用车指数的 0.98x 占位（有真实人口接口后替换）
+    // temporarily use the same data for population
     popData.value = mapped.data.map(d => ({ index: +(d.index * 0.98).toFixed(2), added: 0 }))
 
     localStorage.setItem(CACHE_KEY, JSON.stringify({
@@ -164,7 +164,7 @@ onMounted(async () => {
   }
 })
 
-/** 传给图表的序列与 Y 轴标签 */
+/** send data to chart */
 const series = computed(() => {
   const car = { name: 'Car Ownership (Index)', color: '#0B4F9C', data: carData.value }
   if (!compare.value) return [car]
@@ -175,7 +175,7 @@ const yLabel = computed(() =>
   compare.value ? 'Indexed (2016-Q1 = 100)' : 'Registered Vehicles (Indexed, 2016-Q1 = 100)'
 )
 
-/** 分享导出（导出 PNG 会包含图内标题与当前图例状态） */
+/** share */
 async function onShare() {
   try {
     sharing.value = true

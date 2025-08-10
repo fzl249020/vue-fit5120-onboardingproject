@@ -3,10 +3,10 @@
     class="min-h-screen bg-cover bg-center relative"
     :style="{ backgroundImage: `url(${bgUser})` }"
   >
-    <!-- 遮罩层 -->
+    <!-- shade -->
     <div class="absolute inset-0 bg-black opacity-40 z-0"></div>
 
-    <!-- 主体内容 -->
+    <!-- main content -->
     <div class="relative z-10 px-10 py-20 flex flex-col gap-10 text-black">
       <!-- Section Cards -->
       <div

@@ -1,8 +1,8 @@
 import { createApp } from 'vue'
 import App from './App.vue'
-import router from './router'         // ← 添加 Vue Router 引入
-import './assets/tailwind.css'        // ← 引入 Tailwind 样式
+import router from './router'         // ← add Vue Router 
+import './assets/tailwind.css'        // ← add Tailwind CSS
 
 createApp(App)
-  .use(router)                        // ← 挂载 Vue Router
+  .use(router)                        // ← mount Vue Router
   .mount('#app')

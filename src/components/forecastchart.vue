@@ -7,7 +7,7 @@ import * as echarts from 'echarts'
 import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
 
 const props = defineProps({
-  // 历史与预测的原始数组（单位：辆）。history 为 2016Q1~2020Q4（20 个点），forecast 为 2021Q1~Q4（4 个点）
+  // history and forecast data
   history:  { type: Array, required: true },
   forecast: { type: Array, required: true },
 })
@@ -15,7 +15,7 @@ const props = defineProps({
 const chartEl = ref(null)
 let chart
 
-// 生成 Q1 '16 ~ Q4 '21
+// Generate Q1 '16 ~ Q4 '21
 const quarterLabels = (() => {
   const labels = []
   for (let y = 2016; y <= 2021; y++) {
@@ -32,7 +32,7 @@ const render = () => {
 
   const historyLen = props.history.length
   const totalLen   = quarterLabels.length // 24
-  // 合成 series：用 null 占位，保证两条线接力展示
+  // generate series：use null placeholder，ensure correct x-axis alignment
   const seriesHistorical = [...props.history, ...Array(totalLen - historyLen).fill(null)]
   const seriesForecast   = [...Array(historyLen).fill(null), ...props.forecast]
 

@@ -4,19 +4,19 @@ const bgCity = new URL('../assets/city.png', import.meta.url).href
 
 <template>
   <div class="relative min-h-screen bg-cover bg-center" :style="{ backgroundImage: `url(${bgCity})` }">
-    <!-- 遮罩层 -->
+    <!-- shade -->
     <div class="absolute inset-0 bg-black bg-opacity-50 z-0"></div>
 
-    <!-- 内容区域 -->
+    <!-- content area -->
     <div class="relative z-10 flex flex-col items-center justify-center min-h-screen text-white text-center px-4">
       <h1 class="text-4xl font-extrabold drop-shadow-lg mb-6">Find a Parking Spot in Melbourne</h1>
       <div class="flex gap-2 mb-8">
         <input type="text" placeholder="Enter your destination..." class="px-4 py-2 rounded border border-gray-300 text-black w-64" />
         <button class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">Find Parking</button>
       </div>
-      <!-- 在搜索栏下面放这个网格 -->
+      <!-- put grid below the search bar -->
       <section class="max-w-6xl mx-auto mt-8 grid grid-cols-1 md:grid-cols-3 gap-6 px-4">
-        <!-- 卡片 1 -->
+        <!-- card 1 -->
         <div class="rounded-xl border shadow-sm p-6 bg-white/90 backdrop-blur">
           <div class="text-2xl mb-2 font-extrabold text-black font-serif"> Step 1</div>
           <h3 class="text-lg font-semibold mb-2 text-black">Enter your destination</h3>
@@ -30,7 +30,7 @@ const bgCity = new URL('../assets/city.png', import.meta.url).href
           </ul>
         </div>
 
-        <!-- 卡片 2 -->
+        <!-- card 2 -->
         <div class="rounded-xl border shadow-sm p-6 bg-white/90 backdrop-blur">
           <div class="text-2xl mb-2 font-extrabold text-black font-serif"> Step 2</div>
           <h3 class="text-lg font-semibold mb-2 text-black">Click “Find Parking”</h3>
@@ -44,7 +44,7 @@ const bgCity = new URL('../assets/city.png', import.meta.url).href
           </ul>
         </div>
 
-        <!-- 卡片 3 -->
+        <!-- card 3 -->
         <div class="rounded-xl border shadow-sm p-6 bg-white/90 backdrop-blur">
           <div class="text-2xl mb-2 font-extrabold text-black font-serif"> Step 3</div>
           <h3 class="text-lg font-semibold mb-2 text-black">Explore insights</h3>
