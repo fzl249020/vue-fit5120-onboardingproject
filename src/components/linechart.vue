@@ -4,84 +4,101 @@
 
 <script setup>
 import * as echarts from 'echarts'
-import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
+import { ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 
 const props = defineProps({
-  values: { type: Array, required: true }, // 24 个季度值
+  labels: { type: Array, required: true },          // ['Q1-2016', ... 'Q4-2021']
+  series: { type: Array, required: true },          // [{ name, color, dashed?, data:[{index, added}] }]
+  yLabel: { type: String, required: true },         // e.g. 'Registered Vehicles (Indexed, 2016-Q1 = 100)'
+  showLegend: { type: Boolean, default: false },
 })
 
 const chartEl = ref(null)
 let chart
 
-// 生成 X 轴季度标签：Q1 '16 ~ Q4 '21
-const quarterLabels = (() => {
-  const labels = []
-  for (let y = 2016; y <= 2021; y++) {
-    for (let q = 1; q <= 4; q++) {
-      const yy = String(y).slice(2)
-      labels.push(`Q${q} '${yy}`)
+const hexToShadow = (hex, alpha = 0.5) => {
+  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
+  if (!m) return 'rgba(0,0,0,0.35)'
+  const r = parseInt(m[1], 16), g = parseInt(m[2], 16), b = parseInt(m[3], 16)
+  return `rgba(${r},${g},${b},${alpha})`
+}
+
+const buildOption = () => ({
+  tooltip: {
+    trigger: 'axis',
+    backgroundColor: '#374151', // dark grey
+    borderColor: '#374151',
+    textStyle: { color: '#fff' },
+    axisPointer: { type: 'line' },
+    formatter: (params) => {
+      // params: [{axisValue, seriesName, data:{index,added}} ...]
+      const quarter = params[0]?.axisValue || ''
+      const primary = params.find(p => p.seriesIndex === 0) || params[0]
+      const idx = primary?.data?.index ?? primary?.data ?? 0
+      const added = primary?.data?.added ?? 0
+      let html = `Quarter: ${quarter}<br/>Index: ${(+idx).toFixed(2)}<br/>Est. added: ${(added || 0).toLocaleString()}`
+      if (params.length > 1) {
+        // 额外序列只展示 Index
+        for (let i = 1; i < params.length; i++) {
+          const it = params[i]
+          const v = it?.data?.index ?? it?.data ?? 0
+          html += `<br/>${it.seriesName}: ${(+v).toFixed(2)}`
+        }
+      }
+      return html
     }
-  }
-  return labels
-})()
+  },
+  grid: { left: 50, right: 20, top: 30, bottom: props.showLegend ? 70 : 50 },
+
+  xAxis: {
+    type: 'category',
+    boundaryGap: false,
+    data: props.labels,
+    name: 'Quarters',
+    nameLocation: 'middle',
+    nameGap: 30,
+    nameTextStyle: { fontSize: 14, fontWeight: 500, color: '#6B7280' },
+    axisLabel: { color: '#9CA3AF', fontSize: 12 },
+    splitLine: { show: true, lineStyle: { type: 'dashed', color: '#E5E7EB' } }
+  },
+
+  yAxis: {
+    type: 'value',
+    name: props.yLabel,
+    nameTextStyle: { fontSize: 14, fontWeight: 500, color: '#6B7280' },
+    axisLabel: { color: '#9CA3AF', fontSize: 12 }, // indexed value
+    splitLine: { show: true, lineStyle: { type: 'solid', color: '#E5E7EB' } }
+  },
+
+  legend: props.showLegend ? { bottom: 10 } : undefined,
+
+  series: props.series.map((s, i) => ({
+    name: s.name,
+    type: 'line',
+    smooth: true,
+    symbol: 'circle',
+    symbolSize: 6,
+    lineStyle: { width: 2, color: s.color, type: s.dashed ? 'dashed' : 'solid' },
+    areaStyle: { opacity: i === 0 ? 0.10 : 0.06 },
+    emphasis: {
+      scale: true,
+      lineStyle: {
+        shadowColor: hexToShadow(s.color, 0.5),
+        shadowBlur: 9,
+        shadowOffsetX: 0,
+        shadowOffsetY: 0
+      },
+      itemStyle: {
+        borderWidth: 2, borderColor: s.color, color: '#ffffff'
+      }
+    },
+    data: s.data.map(d => ({ value: d.index, index: d.index, added: d.added }))
+  }))
+})
 
 const render = () => {
   if (!chart) chart = echarts.init(chartEl.value)
-
-  chart.setOption({
-    tooltip: { trigger: 'axis' },
-    grid: { left: 50, right: 20, top: 30, bottom: 50 },
-
-    // X 轴（标题、刻度、浅灰虚线网格）
-    xAxis: {
-      type: 'category',
-      boundaryGap: false,
-      data: quarterLabels,
-      name: 'Quarters',
-      nameLocation: 'middle',
-      nameGap: 30,
-      nameTextStyle: { fontSize: 14, fontWeight: 500, color: '#6B7280' }, // Medium Grey
-      axisLabel: { color: '#9CA3AF', fontSize: 12 }, // Light Grey
-      splitLine: { show: true, lineStyle: { type: 'dashed', color: '#E5E7EB' } }
-    },
-
-    // Y 轴（标题与样式）
-    yAxis: {
-      type: 'value',
-      name: 'Estimated Number of Registered Vehicles',
-      nameTextStyle: { fontSize: 14, fontWeight: 500, color: '#6B7280' },
-      axisLabel: {
-        formatter: (v) => `${Math.round(v / 1000)}k`,
-        fontSize: 12, color: '#9CA3AF'
-      },
-      splitLine: { show: true, lineStyle: { type: 'solid', color: '#E5E7EB' } }
-    },
-
-    series: [{
-      name: 'Ownership',
-      type: 'line',
-      smooth: true,
-      symbol: 'circle',
-      symbolSize: 6,                 // 默认点尺寸
-      areaStyle: { opacity: 0.15 },
-      lineStyle: { width: 2, color: '#3B82F6' },
-      emphasis: {
-        scale: true,                 // 悬停点放大
-        lineStyle: {
-          shadowColor: 'rgba(59,130,246,0.5)',
-          shadowBlur: 9,
-          shadowOffsetX: 0,
-          shadowOffsetY: 0
-        },
-        itemStyle: {
-          borderWidth: 2,
-          borderColor: '#3B82F6',
-          color: '#ffffff'
-        }
-      },
-      data: props.values
-    }]
-  })
+  chart.setOption(buildOption(), true)
   chart.resize()
 }
 
@@ -97,5 +114,9 @@ onBeforeUnmount(() => {
   chart && chart.dispose()
 })
 
-watch(() => props.values, render, { deep: true })
+watch(() => [props.labels, props.series, props.yLabel, props.showLegend], () => nextTick(render), { deep: true })
+
+// Expose methods for external use
+const getDataURL = (opts = {}) => chart?.getDataURL({ pixelRatio: 2, backgroundColor: '#ffffff', ...opts })
+defineExpose({ getDataURL })
 </script>
