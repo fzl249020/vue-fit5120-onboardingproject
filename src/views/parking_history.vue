@@ -86,9 +86,7 @@
         <button class="w-9 h-9 bg-white border-b hover:bg-gray-50">+</button>
         <button class="w-9 h-9 bg-white hover:bg-gray-50">−</button>
       </div>
-      <div class="h-[520px] flex items-center justify-center text-gray-400">
-        <span class="text-sm">Map placeholder — integrate Leaflet / Mapbox / Google Maps later</span>
-      </div>
+      <div ref="mapRef" class="h-[520px] w-full"></div>
     </div>
   </section>
 </template>
@@ -145,5 +143,56 @@ const onSearch = () => {
 const applyFilters = () => {
   // TODO: send form to backend or use for frontend filtering
   // console.log(JSON.parse(JSON.stringify(form)))
+}
+
+// ===== Google Map =====
+const mapRef = ref(null)
+let map
+const GOOGLE_MAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_KEY
+
+onMounted(() => {
+  loadGoogleMaps(() => {
+    initMap()
+  })
+})
+
+function loadGoogleMaps(callback) {
+  if (window.google && window.google.maps) {
+    callback()
+    return
+  }
+  const script = document.createElement('script')
+  script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_KEY}`
+  script.async = true
+  document.head.appendChild(script)
+  script.onload = callback
+}
+
+function initMap() {
+  map = new window.google.maps.Map(mapRef.value, {
+    center: { lat: -37.8136, lng: 144.9631 },
+    zoom: 15
+  })
+
+  // 虚拟数据
+  const parkingData = [
+    { lat: -37.815, lng: 144.965, street: 'Collins St', zone: 'Z001', status: 'Occupied' },
+    { lat: -37.814, lng: 144.963, street: 'Bourke St', zone: 'Z002', status: 'Unoccupied' }
+  ]
+
+  parkingData.forEach(spot => {
+    new window.google.maps.Marker({
+      position: { lat: spot.lat, lng: spot.lng },
+      map: map,
+      icon: {
+        path: window.google.maps.SymbolPath.CIRCLE,
+        scale: 8,
+        fillColor: spot.status === 'Occupied' ? 'red' : 'green',
+        fillOpacity: 1,
+        strokeWeight: 0
+      },
+      title: `${spot.street} (${spot.zone})`
+    })
+  })
 }
 </script>
