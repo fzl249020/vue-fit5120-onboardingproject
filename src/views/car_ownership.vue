@@ -63,6 +63,7 @@ import { ref, computed, onMounted } from 'vue'
 import breadcrumbs from '../components/breadcrumbs.vue'
 import linechart from '../components/linechart.vue'
 import ToggleSwitch from '../components/ToggleSwitch.vue'
+import { getVicQuarterly } from '../api/vehicle'
 
 /** 标题（同时用于导出图片中的图内标题） */
 const chartTitle = 'Quarterly Car Ownership Trends: Melbourne (2016–2021)'
@@ -115,6 +116,52 @@ function buildIndexedSeries(annualYoY, baseIndex = 100, baseAbs = 2000000) {
   return data
 }
 
+
+function toIndexedData(rows) {
+  const parseQ = (q) => {
+    const s = String(q)
+    let m = s.match(/(\d{4}).*?Q([1-4])/i)
+    if (!m) m = s.match(/Q([1-4]).*?(\d{4})/i)
+    if (!m) return { y: 0, q: 0 }
+    const y = +(m[1].length === 4 ? m[1] : m[2])
+    const qi = +(m[2] || m[1])
+    return { y, q: qi }
+  }
+
+  const arr = Array.isArray(rows) ? rows : (rows?.quarterly || rows?.rows || [])
+  const norm = arr
+    .map(r => {
+      const quarter = r.quarter || r.q || r.period || ''
+      const { y, q } = parseQ(quarter)
+      return { ...r, __y: y, __q: q }
+    })
+    .filter(r => r.__y >= 2016 && r.__y <= 2021 && r.__q >= 1 && r.__q <= 4)
+    .sort((a, b) => a.__y - b.__y || a.__q - b.__q)
+    .slice(0, 24)
+
+  if (!norm.length) return null
+
+  if ('index' in norm[0]) {
+    // 后端直接给指数
+    return norm.map(r => ({
+      index: +Number(r.index).toFixed(2),
+      added: r.__y === 2016 ? 0 : (Number(r.added) || 0)
+    }))
+  }
+
+  if ('value' in norm[0]) {
+    // 绝对值 => 指数（以首个点为 100）
+    const first = Number(norm[0].value) || 1
+    return norm.map(r => {
+      const idx = +((Number(r.value) / first) * 100).toFixed(2)
+      const added = r.__y === 2016 ? 0 : Math.max(0, Math.round((Number(r.value) || 0) - first))
+      return { index: idx, added }
+    })
+  }
+
+  return null
+}
+
 /** 缓存 */
 const CACHE_KEY = 'vic-car-pop-index-2016-2021-v1'
 
@@ -126,18 +173,29 @@ const sharing = ref(false)
 const carData = ref([])
 const popData = ref([])
 
-onMounted(() => {
-  const cached = localStorage.getItem(CACHE_KEY)
-  if (cached) {
-    const obj = JSON.parse(cached)
-    carData.value = obj.car
-    popData.value = obj.pop
-  } else {
+onMounted(async () => {
+  try {
+    // 优先带参数请求；不支持参数就退回无参
+    const res = await getVicQuarterly({ region: 'VIC', from: '2016Q1', to: '2021Q4' })
+      .catch(() => getVicQuarterly())
+
+    const data = toIndexedData(res)
+    if (!data || data.length !== 24) throw new Error('Unexpected payload')
+
+    carData.value = data
+    // 临时人口对比：用车指数的 0.98x 占位（有真实人口接口后替换）
+    popData.value = data.map(d => ({ index: +(d.index * 0.98).toFixed(2), added: 0 }))
+
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ car: carData.value, pop: popData.value }))
+  } catch (e) {
+    // 回退：用你现有的本地 YoY 计算
     carData.value = buildIndexedSeries(CAR_YOY)
     popData.value = buildIndexedSeries(POP_YOY)
     localStorage.setItem(CACHE_KEY, JSON.stringify({ car: carData.value, pop: popData.value }))
+    console.warn('Use fallback data:', e?.message || e)
   }
 })
+
 
 /** 传给图表的序列与 Y 轴标签 */
 const series = computed(() => {
