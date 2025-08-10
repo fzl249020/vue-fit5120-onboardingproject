@@ -174,7 +174,7 @@ function initMap() {
     zoom: 15
   })
 
-  // 虚拟数据
+  // 虚拟数据dummy value
   const parkingData = [
     { lat: -37.815, lng: 144.965, street: 'Collins St', zone: 'Z001', status: 'Occupied' },
     { lat: -37.814, lng: 144.963, street: 'Bourke St', zone: 'Z002', status: 'Unoccupied' }
