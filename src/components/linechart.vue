@@ -11,6 +11,7 @@ const props = defineProps({
   series: { type: Array, required: true },          // [{ name, color, dashed?, data:[{index, added}] }]
   yLabel: { type: String, required: true },         // e.g. 'Registered Vehicles (Indexed, 2016-Q1 = 100)'
   showLegend: { type: Boolean, default: false },
+  title: { type: String, default: '' }              // also used for exporting
 })
 
 const chartEl = ref(null)
@@ -24,6 +25,16 @@ const hexToShadow = (hex, alpha = 0.5) => {
 }
 
 const buildOption = () => ({
+  //  title will display if provided
+  title: props.title
+    ? {
+        text: props.title,
+        left: 'center',
+        top: 6,
+        textStyle: { fontSize: 14, fontWeight: 600, color: '#111827' }
+      }
+    : undefined,
+
   tooltip: {
     trigger: 'axis',
     backgroundColor: '#374151', // dark grey
@@ -31,14 +42,12 @@ const buildOption = () => ({
     textStyle: { color: '#fff' },
     axisPointer: { type: 'line' },
     formatter: (params) => {
-      // params: [{axisValue, seriesName, data:{index,added}} ...]
       const quarter = params[0]?.axisValue || ''
       const primary = params.find(p => p.seriesIndex === 0) || params[0]
       const idx = primary?.data?.index ?? primary?.data ?? 0
       const added = primary?.data?.added ?? 0
       let html = `Quarter: ${quarter}<br/>Index: ${(+idx).toFixed(2)}<br/>Est. added: ${(added || 0).toLocaleString()}`
       if (params.length > 1) {
-        // 额外序列只展示 Index
         for (let i = 1; i < params.length; i++) {
           const it = params[i]
           const v = it?.data?.index ?? it?.data ?? 0
@@ -48,7 +57,9 @@ const buildOption = () => ({
       return html
     }
   },
-  grid: { left: 50, right: 20, top: 30, bottom: props.showLegend ? 70 : 50 },
+
+  // when showLegend is true, display legend at the bottom
+  grid: { left: 80, right: 24, top: props.title ? 64 : 40, bottom: props.showLegend ? 80 : 56 },
 
   xAxis: {
     type: 'category',
@@ -65,8 +76,11 @@ const buildOption = () => ({
   yAxis: {
     type: 'value',
     name: props.yLabel,
+    nameLocation  : 'middle',
+    nameGap       : 50,
+    nameRotate   : 90,
     nameTextStyle: { fontSize: 14, fontWeight: 500, color: '#6B7280' },
-    axisLabel: { color: '#9CA3AF', fontSize: 12 }, // indexed value
+    axisLabel: { color: '#9CA3AF', fontSize: 12 },
     splitLine: { show: true, lineStyle: { type: 'solid', color: '#E5E7EB' } }
   },
 
@@ -103,20 +117,12 @@ const render = () => {
 }
 
 const handleResize = () => chart && chart.resize()
+onMounted(() => { render(); window.addEventListener('resize', handleResize) })
+onBeforeUnmount(() => { window.removeEventListener('resize', handleResize); chart && chart.dispose() })
 
-onMounted(() => {
-  render()
-  window.addEventListener('resize', handleResize)
-})
+watch(() => [props.labels, props.series, props.yLabel, props.showLegend, props.title], () => nextTick(render), { deep: true })
 
-onBeforeUnmount(() => {
-  window.removeEventListener('resize', handleResize)
-  chart && chart.dispose()
-})
-
-watch(() => [props.labels, props.series, props.yLabel, props.showLegend], () => nextTick(render), { deep: true })
-
-// Expose methods for external use
+// Export for sharing
 const getDataURL = (opts = {}) => chart?.getDataURL({ pixelRatio: 2, backgroundColor: '#ffffff', ...opts })
 defineExpose({ getDataURL })
 </script>

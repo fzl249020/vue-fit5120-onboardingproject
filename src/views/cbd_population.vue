@@ -24,8 +24,10 @@ import breadcrumbs from '../components/breadcrumbs.vue'
 const crumbs = [
   { text: 'Home', href: '/' },
   { text: 'Features' },
+  { text: 'Data Insights' },
   { text: 'CBD Population Trends' }
 ]
+
 
 const chartEl = ref(null)
 let chart

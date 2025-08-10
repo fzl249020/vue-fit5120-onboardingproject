@@ -5,14 +5,12 @@
     <!-- header -->
     <div class="flex items-center justify-between mb-4">
       <h1 class="text-2xl md:text-3xl font-bold">
-        Quarterly Car Ownership Trends: Melbourne (2016–2021)
+        {{ chartTitle }}
       </h1>
       <div class="flex items-center gap-3">
-        <!-- Compare -->
-        <label class="inline-flex items-center gap-2 text-sm">
-          <input type="checkbox" v-model="compare" />
-          <span>Compare</span>
-        </label>
+        <!-- Compare：切换开关（组件版，带动画） -->
+        <ToggleSwitch v-model="compare" label="Compare" />
+
         <!-- Share button -->
         <button
           class="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border text-sm hover:bg-gray-50"
@@ -39,6 +37,7 @@
         :series="series"
         :y-label="yLabel"
         :show-legend="compare"
+        :title="chartTitle"
       />
     </div>
 
@@ -63,34 +62,40 @@
 import { ref, computed, onMounted } from 'vue'
 import breadcrumbs from '../components/breadcrumbs.vue'
 import linechart from '../components/linechart.vue'
+import ToggleSwitch from '../components/ToggleSwitch.vue'
 
-/** ---------- Breadcrumbs（只保留这一处） ---------- */
+/** 标题（同时用于导出图片中的图内标题） */
+const chartTitle = 'Quarterly Car Ownership Trends: Melbourne (2016–2021)'
+
+/** Breadcrumbs */
 const crumbs = [
   { text: 'Home', href: '/' },
   { text: 'Features' },
+  { text: 'Data Insights' },
   { text: 'Car Ownership Trends' }
 ]
 
-/** ---------- 工具：季度标签 Q1-2016 … Q4-2021 ---------- */
+
+/** 工具：季度标签 Q1-2016 … Q4-2021 */
 const buildLabels = () => {
   const out = []
   for (let y = 2016; y <= 2021; y++) for (let q = 1; q <= 4; q++) out.push(`Q${q}-${y}`)
   return out
 }
 
-/** ---------- 季节权重 ---------- */
+/** 季节权重（按 AC 规则） */
 const weightsForYear = (y) => {
-  if (y === 2020) return [0.28, 0.18, 0.18, 0.36] // COVID：中间弱、Q4 反弹
+  if (y === 2020) return [0.28, 0.18, 0.18, 0.36] // COVID 中间弱，Q4 反弹
   if (y === 2021) return [0.30, 0.27, 0.22, 0.21] // H1 强，H2 正常化
   if (y >= 2017 && y <= 2019) return [0.28, 0.22, 0.22, 0.28] // 温和季节性
   return [0.25, 0.25, 0.25, 0.25] // 2016
 }
 
-/** ---------- 年度 YoY%（占位） ---------- */
+/** 年度 YoY%（占位） */
 const CAR_YOY = { 2016: 0.020, 2017: 0.025, 2018: 0.023, 2019: 0.028, 2020: -0.018, 2021: 0.035 }
 const POP_YOY = { 2016: 0.018, 2017: 0.022, 2018: 0.021, 2019: 0.015, 2020: -0.010, 2021: 0.012 }
 
-/** ---------- 指数与“估算新增” ---------- */
+/** 指数与“估算新增”生成（2016Q1=100；2016 各季度 added=0） */
 function buildIndexedSeries(annualYoY, baseIndex = 100, baseAbs = 2000000) {
   const data = []
   let idx = baseIndex
@@ -110,7 +115,7 @@ function buildIndexedSeries(annualYoY, baseIndex = 100, baseAbs = 2000000) {
   return data
 }
 
-/** ---------- 缓存 ---------- */
+/** 缓存 */
 const CACHE_KEY = 'vic-car-pop-index-2016-2021-v1'
 
 const labels = ref(buildLabels())
@@ -134,18 +139,19 @@ onMounted(() => {
   }
 })
 
-/** ---------- 传给图表 ---------- */
+/** 传给图表的序列与 Y 轴标签 */
 const series = computed(() => {
   const car = { name: 'Car Ownership (Index)', color: '#0B4F9C', data: carData.value }
   if (!compare.value) return [car]
   const pop = { name: 'Population (Index)', color: '#F59E0B', data: popData.value }
   return [car, pop]
 })
+
 const yLabel = computed(() =>
   compare.value ? 'Indexed (2016-Q1 = 100)' : 'Registered Vehicles (Indexed, 2016-Q1 = 100)'
 )
 
-/** ---------- 分享导出 ---------- */
+/** 分享导出（导出 PNG 会包含图内标题与当前图例状态） */
 async function onShare() {
   try {
     sharing.value = true
@@ -154,12 +160,14 @@ async function onShare() {
     const blob = await (await fetch(dataURL)).blob()
     const file = new File([blob], 'car-ownership-trends.png', { type: blob.type })
     if (navigator.share && navigator.canShare?.({ files: [file] })) {
-      await navigator.share({ files: [file], title: 'Quarterly Car Ownership Trends: Melbourne (2016–2021)' })
+      await navigator.share({ files: [file], title: chartTitle })
     } else {
       const a = document.createElement('a')
-      a.href = dataURL; a.download = 'car-ownership-trends.png'; document.body.appendChild(a); a.click(); a.remove()
+      a.href = dataURL; a.download = 'car-ownership-trends.png'
+      document.body.appendChild(a); a.click(); a.remove()
     }
-  } finally { sharing.value = false }
+  } finally {
+    sharing.value = false
+  }
 }
 </script>
-
