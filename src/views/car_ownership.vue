@@ -13,7 +13,7 @@
 
         <!-- Share button -->
         <button
-          class="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border text-sm hover:bg-gray-50"
+          class="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border text-sm hover:bg-gray-50 disabled:opacity-50"
           @click="onShare"
           :disabled="sharing"
           title="Share"
@@ -65,7 +65,7 @@ import linechart from '../components/linechart.vue'
 import ToggleSwitch from '../components/ToggleSwitch.vue'
 import { getVicQuarterly } from '../api/vehicle'
 
-/** 标题（同时用于导出图片中的图内标题） */
+/** 标题（用于导出图片中的图内标题） */
 const chartTitle = 'Quarterly Car Ownership Trends: Melbourne (2016–2021)'
 
 /** Breadcrumbs */
@@ -76,27 +76,26 @@ const crumbs = [
   { text: 'Car Ownership Trends' }
 ]
 
-
-/** 工具：季度标签 Q1-2016 … Q4-2021 */
+/** 工具：本地回退时生成季度标签 Q1-2016 … Q4-2021 */
 const buildLabels = () => {
   const out = []
   for (let y = 2016; y <= 2021; y++) for (let q = 1; q <= 4; q++) out.push(`Q${q}-${y}`)
   return out
 }
 
-/** 季节权重（按 AC 规则） */
+/** 季节权重（仅回退用） */
 const weightsForYear = (y) => {
-  if (y === 2020) return [0.28, 0.18, 0.18, 0.36] // COVID 中间弱，Q4 反弹
-  if (y === 2021) return [0.30, 0.27, 0.22, 0.21] // H1 强，H2 正常化
-  if (y >= 2017 && y <= 2019) return [0.28, 0.22, 0.22, 0.28] // 温和季节性
-  return [0.25, 0.25, 0.25, 0.25] // 2016
+  if (y === 2020) return [0.28, 0.18, 0.18, 0.36]
+  if (y === 2021) return [0.30, 0.27, 0.22, 0.21]
+  if (y >= 2017 && y <= 2019) return [0.28, 0.22, 0.22, 0.28]
+  return [0.25, 0.25, 0.25, 0.25]
 }
 
-/** 年度 YoY%（占位） */
+/** 年度 YoY%（仅回退用） */
 const CAR_YOY = { 2016: 0.020, 2017: 0.025, 2018: 0.023, 2019: 0.028, 2020: -0.018, 2021: 0.035 }
 const POP_YOY = { 2016: 0.018, 2017: 0.022, 2018: 0.021, 2019: 0.015, 2020: -0.010, 2021: 0.012 }
 
-/** 指数与“估算新增”生成（2016Q1=100；2016 各季度 added=0） */
+/** 本地回退：指数与“估算新增”生成（2016Q1=100） */
 function buildIndexedSeries(annualYoY, baseIndex = 100, baseAbs = 2000000) {
   const data = []
   let idx = baseIndex
@@ -116,86 +115,54 @@ function buildIndexedSeries(annualYoY, baseIndex = 100, baseAbs = 2000000) {
   return data
 }
 
-
-function toIndexedData(rows) {
-  const parseQ = (q) => {
-    const s = String(q)
-    let m = s.match(/(\d{4}).*?Q([1-4])/i)
-    if (!m) m = s.match(/Q([1-4]).*?(\d{4})/i)
-    if (!m) return { y: 0, q: 0 }
-    const y = +(m[1].length === 4 ? m[1] : m[2])
-    const qi = +(m[2] || m[1])
-    return { y, q: qi }
-  }
-
-  const arr = Array.isArray(rows) ? rows : (rows?.quarterly || rows?.rows || [])
-  const norm = arr
-    .map(r => {
-      const quarter = r.quarter || r.q || r.period || ''
-      const { y, q } = parseQ(quarter)
-      return { ...r, __y: y, __q: q }
-    })
-    .filter(r => r.__y >= 2016 && r.__y <= 2021 && r.__q >= 1 && r.__q <= 4)
-    .sort((a, b) => a.__y - b.__y || a.__q - b.__q)
-    .slice(0, 24)
-
-  if (!norm.length) return null
-
-  if ('index' in norm[0]) {
-    // 后端直接给指数
-    return norm.map(r => ({
-      index: +Number(r.index).toFixed(2),
-      added: r.__y === 2016 ? 0 : (Number(r.added) || 0)
-    }))
-  }
-
-  if ('value' in norm[0]) {
-    // 绝对值 => 指数（以首个点为 100）
-    const first = Number(norm[0].value) || 1
-    return norm.map(r => {
-      const idx = +((Number(r.value) / first) * 100).toFixed(2)
-      const added = r.__y === 2016 ? 0 : Math.max(0, Math.round((Number(r.value) || 0) - first))
-      return { index: idx, added }
-    })
-  }
-
-  return null
+/** —— 使用后端返回的结构进行映射 —— */
+function fromApi(rows) {
+  if (!Array.isArray(rows) || rows.length !== 24) return null
+  const sorted = [...rows].sort((a, b) => a.year - b.year || a.quarter - b.quarter)
+  const labels = sorted.map(r => r.quarter_label) // 例如 'Q1-2016'
+  const data = sorted.map(r => ({
+    index: +Number(r.index_val).toFixed(2),
+    added: Number(r.est_added_vehicles) || 0
+  }))
+  return { labels, data }
 }
 
-/** 缓存 */
+/** 状态 */
 const CACHE_KEY = 'vic-car-pop-index-2016-2021-v1'
-
-const labels = ref(buildLabels())
+const labels = ref(buildLabels())  // 默认先用本地标签；拿到 API 后会替换
 const compare = ref(false)
 const chartRef = ref(null)
 const sharing = ref(false)
-
 const carData = ref([])
 const popData = ref([])
 
+/** 加载数据（优先 API，失败回退本地） */
 onMounted(async () => {
   try {
-    // 优先带参数请求；不支持参数就退回无参
     const res = await getVicQuarterly({ region: 'VIC', from: '2016Q1', to: '2021Q4' })
       .catch(() => getVicQuarterly())
 
-    const data = toIndexedData(res)
-    if (!data || data.length !== 24) throw new Error('Unexpected payload')
+    const mapped = fromApi(res)
+    if (!mapped) throw new Error('Unexpected payload')
 
-    carData.value = data
+    labels.value = mapped.labels
+    carData.value = mapped.data
     // 临时人口对比：用车指数的 0.98x 占位（有真实人口接口后替换）
-    popData.value = data.map(d => ({ index: +(d.index * 0.98).toFixed(2), added: 0 }))
+    popData.value = mapped.data.map(d => ({ index: +(d.index * 0.98).toFixed(2), added: 0 }))
 
-    localStorage.setItem(CACHE_KEY, JSON.stringify({ car: carData.value, pop: popData.value }))
+    localStorage.setItem(CACHE_KEY, JSON.stringify({
+      car: carData.value, pop: popData.value, labels: labels.value
+    }))
   } catch (e) {
-    // 回退：用你现有的本地 YoY 计算
+    labels.value = buildLabels()
     carData.value = buildIndexedSeries(CAR_YOY)
     popData.value = buildIndexedSeries(POP_YOY)
-    localStorage.setItem(CACHE_KEY, JSON.stringify({ car: carData.value, pop: popData.value }))
+    localStorage.setItem(CACHE_KEY, JSON.stringify({
+      car: carData.value, pop: popData.value, labels: labels.value
+    }))
     console.warn('Use fallback data:', e?.message || e)
   }
 })
-
 
 /** 传给图表的序列与 Y 轴标签 */
 const series = computed(() => {
@@ -204,7 +171,6 @@ const series = computed(() => {
   const pop = { name: 'Population (Index)', color: '#F59E0B', data: popData.value }
   return [car, pop]
 })
-
 const yLabel = computed(() =>
   compare.value ? 'Indexed (2016-Q1 = 100)' : 'Registered Vehicles (Indexed, 2016-Q1 = 100)'
 )
