@@ -86,7 +86,7 @@
 </template>
 
 <script setup>
-import { reactive, ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { reactive, ref, onMounted, onBeforeUnmount } from 'vue'
 import breadcrumbs from '../components/breadcrumbs.vue'
 import MultiSelect from '../components/MultiSelect.vue'
 
@@ -147,49 +147,32 @@ let gmapsPromise
 function loadGoogleMaps() {
   if (window.google?.maps) return Promise.resolve()
   if (!GOOGLE_MAPS_KEY) {
+    console.warn('Missing VITE_GOOGLE_MAPS_KEY')
     loadError.value = true
     return Promise.reject(new Error('Missing API key'))
   }
   if (!gmapsPromise) {
     gmapsPromise = new Promise((resolve, reject) => {
-      const s = document.createElement('script')
-      // ✅ 异步 + 每周版本 + places 库
-      s.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_KEY}&libraries=places&v=weekly&loading=async`
-      s.async = true
-      s.defer = true
-      s.onerror = () => reject(new Error('Failed to load Google Maps'))
-      s.onload = () => resolve()
-      document.head.appendChild(s)
+      const script = document.createElement('script')
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_KEY}&libraries=places`
+      script.async = true
+      script.onerror = () => reject(new Error('Failed to load Google Maps'))
+      script.onload = () => resolve()
+      document.head.appendChild(script)
     })
   }
   return gmapsPromise
 }
 
-
 function initAutocomplete() {
   const input = searchInput.value
-  // 库或输入框没就绪则跳过（避免 insertBefore 报错）
-  if (!input || !window.google?.maps) return
-
-  // 旧版 Autocomplete（对大多数组件仍可用）
-  if (window.google.maps.places?.Autocomplete) {
-    const ac = new google.maps.places.Autocomplete(input, {
-      // 只取需要的字段，减少负载
-      fields: ['geometry', 'name'],
-      // 可选：限制到 AU
-      // componentRestrictions: { country: 'au' },
-    })
-    ac.addListener('place_changed', () => {
-      const p = ac.getPlace()
-      const loc = p?.geometry?.location
-      if (loc && map) { map.panTo(loc); map.setZoom(16) }
-    })
-    autocomplete = ac
-    return
-  }
-
-  // 若项目新开且旧类不可用，保持功能可用：退回 Geocoder（点击 Search 触发）
-  console.warn('places.Autocomplete unavailable; falling back to Geocoder button.')
+  if (!input || !window.google?.maps?.places) return
+  autocomplete = new google.maps.places.Autocomplete(input, { fields: ['geometry', 'name'] })
+  autocomplete.addListener('place_changed', () => {
+    const p = autocomplete.getPlace()
+    const loc = p?.geometry?.location
+    if (loc && map) { map.panTo(loc); map.setZoom(16) }
+  })
 }
 
 function initMap() {
@@ -244,17 +227,14 @@ async function onSearch() {
 const zoomIn  = () => map && map.setZoom(map.getZoom() + 1)
 const zoomOut = () => map && map.setZoom(map.getZoom() - 1)
 
-
 onMounted(async () => {
   try {
-    await loadGoogleMaps()   // 等库 ready
-    await nextTick()         // 等 DOM（输入框）就绪
-    initMap()                // 里头会调用 initAutocomplete()
+    await loadGoogleMaps()
+    initMap()
   } catch (e) {
     loadError.value = true
   }
 })
-
 
 onBeforeUnmount(() => {
   map = null
