@@ -253,7 +253,7 @@ function loadGoogleMaps () {
   if (!gmapsPromise) {
     gmapsPromise = new Promise((resolve, reject) => {
       const s = document.createElement('script')
-      // 不带 libraries=places，避免 legacy Places 报错
+      // No libraries=places，avoid legacy Places errors
       s.src = `https://maps.googleapis.com/maps/api/js?key=${KEY}&v=weekly`
       s.async = true; s.defer = true
       s.onerror = () => reject(new Error('Failed to load Google Maps'))
@@ -269,7 +269,7 @@ function loadGoogleMaps () {
 
 /* ---------- Autocomplete (disabled for now) ---------- */
 function initAutocomplete () {
-  // 你的项目未开旧版 Places；这里先禁用，避免报错
+  // old version of Places
   return
 }
 
@@ -283,7 +283,7 @@ function initMap () {
   mapsReady.value = true
   initIcons()
   initAutocomplete()
-  applyFilters() // 初次即按默认筛选
+  applyFilters() // first apply default filters
 }
 
 /* ---------- Search button (geocode fallback) ---------- */
@@ -300,13 +300,13 @@ async function onSearch () {
         searchCenter.value = { lat: loc.lat(), lng: loc.lng() }
         map.panTo(searchCenter.value); map.setZoom(15)
       } else {
-        // 无权限/失败：降级为纯文本
+        // unauthorized
         searchCenter.value = null
       }
       applyFilters()
     })
   } else {
-    // 无 Geocoding：纯文本过滤
+    // no Geocoding
     searchCenter.value = null
     applyFilters()
   }
