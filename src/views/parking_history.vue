@@ -86,7 +86,7 @@
 </template>
 
 <script setup>
-import { reactive, ref, onMounted, onBeforeUnmount } from 'vue'
+import { reactive, ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import breadcrumbs from '../components/breadcrumbs.vue'
 import MultiSelect from '../components/MultiSelect.vue'
 
@@ -142,7 +142,7 @@ const mapsReady = ref(false)
 const loadError = ref(false)
 const GOOGLE_MAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_KEY
 
-// 只加载一次 Google Maps 脚本（带 places 库）
+// 只加载一次 Google Maps 脚本（带 places 库，async + weekly）
 let gmapsPromise
 function loadGoogleMaps() {
   if (window.google?.maps) return Promise.resolve()
@@ -154,8 +154,9 @@ function loadGoogleMaps() {
   if (!gmapsPromise) {
     gmapsPromise = new Promise((resolve, reject) => {
       const script = document.createElement('script')
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_KEY}&libraries=places`
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_KEY}&libraries=places&v=weekly&loading=async`
       script.async = true
+      script.defer = true
       script.onerror = () => reject(new Error('Failed to load Google Maps'))
       script.onload = () => resolve()
       document.head.appendChild(script)
@@ -166,13 +167,20 @@ function loadGoogleMaps() {
 
 function initAutocomplete() {
   const input = searchInput.value
-  if (!input || !window.google?.maps?.places) return
-  autocomplete = new google.maps.places.Autocomplete(input, { fields: ['geometry', 'name'] })
-  autocomplete.addListener('place_changed', () => {
-    const p = autocomplete.getPlace()
-    const loc = p?.geometry?.location
-    if (loc && map) { map.panTo(loc); map.setZoom(16) }
-  })
+  if (!input || !window.google?.maps) return
+
+  // 旧版 Autocomplete 可用则使用，不可用就降级到按钮 Geocoder
+  if (window.google.maps.places?.Autocomplete) {
+    const ac = new google.maps.places.Autocomplete(input, { fields: ['geometry', 'name'] })
+    ac.addListener('place_changed', () => {
+      const p = ac.getPlace()
+      const loc = p?.geometry?.location
+      if (loc && map) { map.panTo(loc); map.setZoom(16) }
+    })
+    autocomplete = ac
+  } else {
+    console.warn('places.Autocomplete unavailable; using Geocoder button fallback.')
+  }
 }
 
 function initMap() {
@@ -229,7 +237,8 @@ const zoomOut = () => map && map.setZoom(map.getZoom() - 1)
 
 onMounted(async () => {
   try {
-    await loadGoogleMaps()
+    await loadGoogleMaps() // 先等库加载
+    await nextTick()       // 再确保 input 等 DOM 已就绪
     initMap()
   } catch (e) {
     loadError.value = true
