@@ -1,6 +1,6 @@
 <template>
   <section class="max-w-5xl mx-auto px-4 py-10">
-    <breadcrumbs :items="crumbs" />
+    <!-- <breadcrumbs :items="crumbs" /> -->
     <h1 class="text-2xl md:text-3xl font-bold mb-6">CBD Population Trends</h1>
 
     <div class="flex justify-center">
@@ -19,14 +19,14 @@
 <script setup>
 import * as echarts from 'echarts'
 import { onMounted, onBeforeUnmount, ref } from 'vue'
-import breadcrumbs from '../components/breadcrumbs.vue'
+// import breadcrumbs from '../components/breadcrumbs.vue'
 
-const crumbs = [
-  { text: 'Home', href: '/' },
-  { text: 'Features' },
-  { text: 'Data Insights' },
-  { text: 'CBD Population Trends' }
-]
+// const crumbs = [
+//   { text: 'Home', href: '/' },
+//   { text: 'Features' },
+//   { text: 'Data Insights' },
+//   { text: 'CBD Population Trends' }
+// ]
 
 
 const chartEl = ref(null)

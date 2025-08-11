@@ -32,7 +32,7 @@
                      group-focus-within:opacity-100 group-focus-within:visible"
             >
               <!-- second-level trigger: Data Insights -->
-              <div class="relative group">
+              <div class="relative group/di">
                 <button
                   ref="diBtnRef"
                   type="button"
@@ -52,7 +52,10 @@
                   ref="diSubRef"
                   :class="[
                     'absolute top-0 z-50 w-64 rounded-xl border bg-white shadow-lg',
-                    'opacity-0 invisible transition group-hover:opacity-100 group-hover:visible',
+                    'opacity-0 invisible transition',
+                    'group-hover/di:opacity-100 group-hover/di:visible',
+                    'group-focus-within/di:opacity-100 group-focus-within/di:visible',
+                    'pointer-events-none group-hover/di:pointer-events-auto group-focus-within/di:pointer-events-auto',
                     // narrow screens: expand left
                     'right-full mr-1',
                     // ≥md：based on openLeft

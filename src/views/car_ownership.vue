@@ -1,6 +1,6 @@
 <template>
   <section class="max-w-5xl mx-auto px-4 py-10">
-    <breadcrumbs :items="crumbs" />
+    <!-- <breadcrumbs :items="crumbs" /> -->
 
     <!-- header -->
     <div class="flex items-center justify-between mb-4">
@@ -60,7 +60,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import breadcrumbs from '../components/breadcrumbs.vue'
+// import breadcrumbs from '../components/breadcrumbs.vue'
 import linechart from '../components/linechart.vue'
 import ToggleSwitch from '../components/ToggleSwitch.vue'
 import { getVicQuarterly } from '../api/vehicle'
@@ -69,12 +69,12 @@ import { getVicQuarterly } from '../api/vehicle'
 const chartTitle = 'Quarterly Car Ownership Trends: Melbourne (2016–2021)'
 
 /** Breadcrumbs */
-const crumbs = [
-  { text: 'Home', href: '/' },
-  { text: 'Features' },
-  { text: 'Data Insights' },
-  { text: 'Car Ownership Trends' }
-]
+// const crumbs = [
+//   { text: 'Home', href: '/' },
+//   { text: 'Features' },
+//   { text: 'Data Insights' },
+//   { text: 'Car Ownership Trends' }
+// ]
 
 /** tool: buildLabels */
 const buildLabels = () => {
