@@ -8,6 +8,7 @@
       <label class="block text-sm font-medium text-gray-700 mb-2">Search (Zone or Street)</label>
       <div class="relative">
         <input
+          ref="searchInput"
           v-model="form.keyword"
           type="text"
           placeholder="e.g., Flinders St"
@@ -129,22 +130,19 @@ const resetFilters = () => {
   form.minute  = 0
 }
 
-const onSearch = () => {
-  // TODO: integrate geocoding
-}
-
 const applyFilters = () => {
   // TODO: send form to backend or use for frontend filtering
 }
 
-// ===== Google Map =====
+// ===== Google Map + Places Autocomplete =====
 const mapRef = ref(null)
-let map
+const searchInput = ref(null)
+let map, autocomplete
 const mapsReady = ref(false)
 const loadError = ref(false)
 const GOOGLE_MAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_KEY
 
-// 只加载一次 Google Maps 脚本
+// 只加载一次 Google Maps 脚本（带 places 库）
 let gmapsPromise
 function loadGoogleMaps() {
   if (window.google?.maps) return Promise.resolve()
@@ -156,7 +154,7 @@ function loadGoogleMaps() {
   if (!gmapsPromise) {
     gmapsPromise = new Promise((resolve, reject) => {
       const script = document.createElement('script')
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_KEY}`
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_KEY}&libraries=places`
       script.async = true
       script.onerror = () => reject(new Error('Failed to load Google Maps'))
       script.onload = () => resolve()
@@ -164,6 +162,17 @@ function loadGoogleMaps() {
     })
   }
   return gmapsPromise
+}
+
+function initAutocomplete() {
+  const input = searchInput.value
+  if (!input || !window.google?.maps?.places) return
+  autocomplete = new google.maps.places.Autocomplete(input, { fields: ['geometry', 'name'] })
+  autocomplete.addListener('place_changed', () => {
+    const p = autocomplete.getPlace()
+    const loc = p?.geometry?.location
+    if (loc && map) { map.panTo(loc); map.setZoom(16) }
+  })
 }
 
 function initMap() {
@@ -177,7 +186,10 @@ function initMap() {
   })
   mapsReady.value = true
 
-  // dummy markers
+  // Autocomplete 绑定到搜索框
+  initAutocomplete()
+
+  // dummy markers（示例）
   const parkingData = [
     { lat: -37.815, lng: 144.965, street: 'Collins St', zone: 'Z001', status: 'Occupied' },
     { lat: -37.814, lng: 144.963, street: 'Bourke St',  zone: 'Z002', status: 'Unoccupied' }
@@ -198,6 +210,20 @@ function initMap() {
   })
 }
 
+// Search 按钮兜底：用 Geocoder 把输入文本定位
+async function onSearch() {
+  const q = form.keyword?.trim()
+  if (!q || !map) return
+  if (!window.google?.maps?.Geocoder) return
+  const geocoder = new google.maps.Geocoder()
+  geocoder.geocode({ address: q, componentRestrictions: { country: 'AU' } }, (results, status) => {
+    if (status === 'OK' && results?.[0]?.geometry?.location) {
+      const loc = results[0].geometry.location
+      map.panTo(loc); map.setZoom(16)
+    }
+  })
+}
+
 const zoomIn  = () => map && map.setZoom(map.getZoom() + 1)
 const zoomOut = () => map && map.setZoom(map.getZoom() - 1)
 
@@ -211,7 +237,7 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
-  // 释放引用，避免热更新/路由切换的内存泄漏
   map = null
+  autocomplete = null
 })
 </script>
