@@ -54,7 +54,7 @@ const bgUser = new URL('../assets/user.png', import.meta.url).href
 // team images in src/assets/team/
 const imgDeekshita = new URL('../assets/team/Deekshita Sridhar.png', import.meta.url).href
 const imgJinyang   = new URL('../assets/team/Jinyang Zheng.png', import.meta.url).href
-const imgSriteysha = new URL('../assets/team/Neppalli Sriteysha.png', import.meta.url).href
+const imgSriteysha = new URL('../assets/team/Neppalli Srityesha.png', import.meta.url).href
 const imgTengyu    = new URL('../assets/team/Tengyu Zhang.png', import.meta.url).href
 const imgZhenglin  = new URL('../assets/team/Zhenglin Fang.png', import.meta.url).href
 
