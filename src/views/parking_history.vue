@@ -87,16 +87,9 @@
 
 <script setup>
 import { reactive, ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
-// import breadcrumbs from '../components/breadcrumbs.vue'
 import MultiSelect from '../components/MultiSelect.vue'
 
-// const crumbs = [
-//   { text: 'Home', href: '/' },
-//   { text: 'Features' },
-//   { text: 'Parking History' }
-// ]
-
-// options { value, label }
+// 选项
 const yearOptions  = [2022, 2023, 2024, 2025].map(y => ({ value: y, label: String(y) }))
 const monthOptions = [
   { value: 1, label: 'Jan' }, { value: 2, label: 'Feb' }, { value: 3, label: 'Mar' },
@@ -109,7 +102,7 @@ const dayOptions   = [
   { value: 4, label: 'Thu' }, { value: 5, label: 'Fri' }, { value: 6, label: 'Sat' }, { value: 0, label: 'Sun' }
 ]
 
-// form state
+// 表单
 const form = reactive({
   keyword: '',
   years: [2025, 2023],
@@ -118,9 +111,7 @@ const form = reactive({
   hour: 9,
   minute: 0
 })
-
 const pad = (n) => String(n).padStart(2, '0')
-
 const resetFilters = () => {
   form.keyword = ''
   form.years   = [2025]
@@ -129,10 +120,7 @@ const resetFilters = () => {
   form.hour    = 9
   form.minute  = 0
 }
-
-const applyFilters = () => {
-  // TODO: send form to backend or use for frontend filtering
-}
+const applyFilters = () => { /* TODO: 发送到后端或前端筛选 */ }
 
 // ===== Google Map + Places Autocomplete =====
 const mapRef = ref(null)
@@ -164,29 +152,28 @@ function makeMarkerIcon(bgColor = '#EF4444', label = 'P', { size = 28 } = {}) {
       </text>
     </svg>`
   const url = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`
+  // 注意：下面的 Size/Point 依赖 google 已加载，因此只在地图初始化后调用
   return {
     url,
     scaledSize: new google.maps.Size(s, s),
     anchor: new google.maps.Point(s / 2, s / 2),
   }
 }
-
 function initIcons() {
   ICON_OCCUPIED   = makeMarkerIcon('#EF4444', 'P') // 红 P
   ICON_UNOCCUPIED = makeMarkerIcon('#10B981', 'U') // 绿 U
 }
-
 function clearMarkers() {
   markers.forEach(m => m.setMap(null))
   markers = []
 }
-
 /** 根据 status 应用图标 */
 function applyParkingMarkers(parkingData = []) {
   if (!map || !window.google?.maps) return
   clearMarkers()
   parkingData.forEach(spot => {
-    const isOcc = String(spot.status || '').toLowerCase() === 'occupied'
+    const norm = String(spot.status || '').trim().toLowerCase()
+    const isOcc = norm === 'occupied'
     const marker = new google.maps.Marker({
       position: { lat: spot.lat, lng: spot.lng },
       map,
@@ -197,23 +184,32 @@ function applyParkingMarkers(parkingData = []) {
   })
 }
 
-// 只加载一次 Google Maps 脚本（带 places 库，async + weekly）
+// 仅加载一次 Google Maps（等待 window.google.maps 真就绪）
 let gmapsPromise
 function loadGoogleMaps() {
   if (window.google?.maps) return Promise.resolve()
-  if (!GOOGLE_MAPS_KEY) {
+
+  const KEY = GOOGLE_MAPS_KEY || (window.__GMAPS_KEY ?? '')
+  if (!KEY) {
     console.warn('Missing VITE_GOOGLE_MAPS_KEY')
-    loadError.value = true
     return Promise.reject(new Error('Missing API key'))
   }
+
   if (!gmapsPromise) {
     gmapsPromise = new Promise((resolve, reject) => {
       const script = document.createElement('script')
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_KEY}&libraries=places&v=weekly&loading=async`
+      // 不使用 loading=async，避免竞态；保留 places / v=weekly
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${KEY}&libraries=places&v=weekly`
       script.async = true
       script.defer = true
       script.onerror = () => reject(new Error('Failed to load Google Maps'))
-      script.onload = () => resolve()
+      script.onload = () => {
+        const waitReady = () => {
+          if (window.google && window.google.maps) resolve()
+          else setTimeout(waitReady, 30)
+        }
+        waitReady()
+      }
       document.head.appendChild(script)
     })
   }
@@ -247,25 +243,20 @@ function initMap() {
   })
   mapsReady.value = true
 
-  // 绑定自动补全
   initAutocomplete()
-
-  // 初始化自定义图标
   initIcons()
 
-  // 示例数据（后续换成你的后端返回即可）
+  // 示例数据（替换为后端数据）
   const parkingData = [
-    { lat: -37.815, lng: 144.965, street: 'Collins St', zone: 'Z001', status: 'Occupied' },
-    { lat: -37.814, lng: 144.963, street: 'Bourke St',  zone: 'Z002', status: 'Unoccupied' },
+    { lat: -37.815, lng: 144.965, street: 'Collins St',    zone: 'Z001', status: 'Occupied' },
+    { lat: -37.814, lng: 144.963, street: 'Bourke St',     zone: 'Z002', status: 'Unoccupied' },
     { lat: -37.816, lng: 144.961, street: 'Elizabeth St',  zone: 'Z003', status: 'occupied' },
-    { lat: -37.817, lng: 144.966, street: 'Queen St',  zone: 'Z004', status: 'unoccupied' },
+    { lat: -37.817, lng: 144.966, street: 'Queen St',      zone: 'Z004', status: 'unoccupied' },
   ]
-
-  // 渲染标记（按 status 应用红P/绿U）
   applyParkingMarkers(parkingData)
 }
 
-// Search 按钮兜底：用 Geocoder 把输入文本定位
+// 搜索兜底：Geocoder
 async function onSearch() {
   const q = form.keyword?.trim()
   if (!q || !map) return
@@ -278,7 +269,6 @@ async function onSearch() {
     }
   })
 }
-
 const zoomIn  = () => map && map.setZoom(map.getZoom() + 1)
 const zoomOut = () => map && map.setZoom(map.getZoom() - 1)
 
@@ -288,10 +278,10 @@ onMounted(async () => {
     await nextTick()
     initMap()
   } catch (e) {
+    console.error('[Maps loader failed]', e)
     loadError.value = true
   }
 })
-
 onBeforeUnmount(() => {
   clearMarkers()
   map = null
