@@ -145,6 +145,9 @@ let radiusCircle = null
 let ICON_OCCUPIED, ICON_UNOCCUPIED
 let markers = []
 
+/* ---------- InfoWindow (single instance) ---------- */
+let infoWindow = null
+
 function makeMarkerIcon (bgColor = '#EF4444', label = 'P', { size = 28 } = {}) {
   const s = size
   const r = Math.round(s * 0.5)
@@ -170,8 +173,48 @@ function initIcons () {
   ICON_UNOCCUPIED = makeMarkerIcon('#10B981', 'U')
 }
 function clearMarkers () { markers.forEach(m => m.setMap(null)); markers = [] }
+
+/* ---------- Popup helpers ---------- */
+const esc = (s) => String(s ?? '—').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))
+const humanStatus = (raw) => {
+  const v = String(raw ?? '').toLowerCase()
+  return (v === 'occupied' || v === 'present' || v === 'true' || v === '1') ? 'Present' : 'Unoccupied'
+}
+function formatPopupHTML(spot){
+  const statusText  = humanStatus(spot.status)
+  const statusColor = statusText === 'Present' ? '#EF4444' : '#10B981'
+  return `
+    <div style="min-width:220px;font-family:system-ui,Inter,Segoe UI,Arial,sans-serif">
+      <div style="font-weight:600;margin-bottom:6px">${esc(spot.street)}</div>
+      <div style="font-size:12px;line-height:1.5;color:#374151">
+        <div><span style="color:#6B7280">Zone:</span> ${esc(spot.zone)}</div>
+        <div><span style="color:#6B7280">Status:</span>
+          <span style="display:inline-block;margin-left:6px;padding:2px 8px;border-radius:9999px;background:${statusColor};color:#fff;font-weight:600;">
+            ${statusText}
+          </span>
+        </div>
+      </div>
+    </div>`
+}
+function attachMarkerPopup(marker, spot){
+  if (!infoWindow) infoWindow = new google.maps.InfoWindow()
+  marker.addListener('click', () => {
+    infoWindow.setContent(formatPopupHTML(spot))
+    // 兼容旧版/新版写法
+    try {
+      infoWindow.open({ map, anchor: marker })
+    } catch {
+      infoWindow.setPosition({ lat: spot.lat, lng: spot.lng })
+      infoWindow.open(map)
+    }
+  })
+}
+
+/* ---------- Markers rendering ---------- */
 function addMarkers (rows) {
   clearMarkers()
+  // 关闭旧弹窗，避免残留
+  infoWindow?.close()
   rows.forEach(spot => {
     const isOcc = String(spot.status || '').toLowerCase() === 'occupied'
     const marker = new google.maps.Marker({
@@ -180,8 +223,11 @@ function addMarkers (rows) {
       icon: isOcc ? ICON_OCCUPIED : ICON_UNOCCUPIED,
       title: `${spot.street} (${spot.zone}) • ${isOcc ? 'Occupied' : 'Unoccupied'}`
     })
+    attachMarkerPopup(marker, spot)
     markers.push(marker)
   })
+  // 点击地图空白处关闭弹窗
+  map.addListener('click', () => infoWindow?.close())
 }
 
 /* ---------- Filtering helpers ---------- */
@@ -243,7 +289,7 @@ function applyFilters () {
   }
 }
 
-/* ---------- Maps loader (no legacy Places) ---------- */
+/* ---------- Maps loader (no Places lib) ---------- */
 let gmapsPromise
 function loadGoogleMaps () {
   if (window.google?.maps) return Promise.resolve()
@@ -253,7 +299,6 @@ function loadGoogleMaps () {
   if (!gmapsPromise) {
     gmapsPromise = new Promise((resolve, reject) => {
       const s = document.createElement('script')
-      // No libraries=places，avoid legacy Places errors
       s.src = `https://maps.googleapis.com/maps/api/js?key=${KEY}&v=weekly`
       s.async = true; s.defer = true
       s.onerror = () => reject(new Error('Failed to load Google Maps'))
@@ -267,12 +312,6 @@ function loadGoogleMaps () {
   return gmapsPromise
 }
 
-/* ---------- Autocomplete (disabled for now) ---------- */
-function initAutocomplete () {
-  // old version of Places
-  return
-}
-
 /* ---------- Map init ---------- */
 function initMap () {
   if (!mapRef.value || !window.google?.maps) return
@@ -282,15 +321,14 @@ function initMap () {
   })
   mapsReady.value = true
   initIcons()
-  initAutocomplete()
-  applyFilters() // first apply default filters
+  applyFilters() // first apply
 }
 
 /* ---------- Search button (geocode fallback) ---------- */
 async function onSearch () {
   const q = form.keyword?.trim()
   if (!map) return
-  if (!q) { applyFilters(); return }
+  if (!q) { searchCenter.value = null; applyFilters(); return }
 
   if (window.google?.maps?.Geocoder) {
     const geocoder = new google.maps.Geocoder()
@@ -300,13 +338,11 @@ async function onSearch () {
         searchCenter.value = { lat: loc.lat(), lng: loc.lng() }
         map.panTo(searchCenter.value); map.setZoom(15)
       } else {
-        // unauthorized
         searchCenter.value = null
       }
       applyFilters()
     })
   } else {
-    // no Geocoding
     searchCenter.value = null
     applyFilters()
   }
@@ -329,6 +365,7 @@ onMounted(async () => {
 })
 onBeforeUnmount(() => {
   clearMarkers()
+  infoWindow?.close()
   if (radiusCircle) radiusCircle.setMap(null)
   map = null
 })
