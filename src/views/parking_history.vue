@@ -12,6 +12,7 @@
           type="text"
           placeholder="e.g., Flinders St"
           class="w-full rounded-lg border px-4 py-2 pr-24 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          @input="hideSearchError"
         />
         <button
           class="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1.5 rounded-md bg-blue-600 text-white text-sm hover:bg-blue-700"
@@ -20,6 +21,22 @@
           Search
         </button>
       </div>
+
+      <!-- Error message (hidden by default) -->
+      <div
+        v-show="searchError.visible"
+        class="mt-3 rounded-md border border-red-200 bg-red-50 text-red-700 px-3 py-2 text-sm flex items-start gap-2"
+        role="alert"
+      >
+        <svg viewBox="0 0 24 24" class="w-4 h-4 mt-0.5" fill="currentColor" aria-hidden="true">
+          <path d="M11 7h2v6h-2V7zm0 8h2v2h-2v-2z"/><path d="M1 21h22L12 2 1 21z"/>
+        </svg>
+        <div>
+          <div class="font-medium">No results found</div>
+          <div class="text-xs text-red-600/80">{{ searchError.message }}</div>
+        </div>
+      </div>
+
       <p v-if="searchCenter" class="mt-2 text-xs text-gray-500">
         Filtering within ~{{ Math.round(searchRadius/100)/10 }} km of selected point.
       </p>
@@ -78,7 +95,7 @@
 </template>
 
 <script setup>
-import { reactive, ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { reactive, ref, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import MultiSelect from '../components/MultiSelect.vue'
 
 /* ---------- Select options ---------- */
@@ -103,6 +120,24 @@ const form = reactive({
   hour: 9
 })
 const pad = (n) => String(n).padStart(2, '0')
+
+/* ---------- Error message state ---------- */
+const searchError = reactive({ visible: false, message: '', timer: null })
+function showSearchError(msg = 'Try a different street/zone or widen your filters.') {
+  searchError.message = msg
+  searchError.visible = true
+  if (searchError.timer) clearTimeout(searchError.timer)
+  searchError.timer = setTimeout(() => {
+    searchError.visible = false
+    searchError.timer = null
+  }, 5000)
+}
+function hideSearchError() {
+  if (searchError.timer) { clearTimeout(searchError.timer); searchError.timer = null }
+  searchError.visible = false
+}
+watch(() => form.keyword, () => hideSearchError())
+
 const resetFilters = () => {
   form.keyword = ''
   form.years   = [2025, 2024]
@@ -110,6 +145,7 @@ const resetFilters = () => {
   form.days    = [1,2,3,4,5]
   form.hour    = 9
   searchCenter.value = null
+  hideSearchError()
   applyFilters()
 }
 
@@ -126,6 +162,19 @@ const parkingDataAll = [
   { lat: -37.8155, lng: 144.9603, street: 'King St',      zone: 'Z009', status: 'Occupied',   year: 2024, month: 9,  dow: 2, hour: 9  },
   { lat: -37.8148, lng: 144.9671, street: 'Russell St',   zone: 'Z010', status: 'Unoccupied', year: 2025, month: 5,  dow: 4, hour: 12 },
 ]
+
+/* ---------- (Placeholder) backend API ---------- */
+// 调后端时替换这里；空结果时仍会触发错误提示
+async function fetchParkingBays(params) {
+  // TODO: const { data } = await api.get('/api/bays', { params })
+  const data = [] // 占位：先返回空数组
+  if (!Array.isArray(data) || data.length === 0) {
+    showSearchError('No results from server for your query.')
+    return []
+  }
+  hideSearchError()
+  return data
+}
 
 /* ---------- Map state ---------- */
 const mapRef = ref(null)
@@ -144,9 +193,6 @@ let radiusCircle = null
 /* ---------- Custom Icons ---------- */
 let ICON_OCCUPIED, ICON_UNOCCUPIED
 let markers = []
-
-/* ---------- InfoWindow (single instance) ---------- */
-let infoWindow = null
 
 function makeMarkerIcon (bgColor = '#EF4444', label = 'P', { size = 28 } = {}) {
   const s = size
@@ -173,48 +219,8 @@ function initIcons () {
   ICON_UNOCCUPIED = makeMarkerIcon('#10B981', 'U')
 }
 function clearMarkers () { markers.forEach(m => m.setMap(null)); markers = [] }
-
-/* ---------- Popup helpers ---------- */
-const esc = (s) => String(s ?? '—').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))
-const humanStatus = (raw) => {
-  const v = String(raw ?? '').toLowerCase()
-  return (v === 'occupied' || v === 'present' || v === 'true' || v === '1') ? 'Present' : 'Unoccupied'
-}
-function formatPopupHTML(spot){
-  const statusText  = humanStatus(spot.status)
-  const statusColor = statusText === 'Present' ? '#EF4444' : '#10B981'
-  return `
-    <div style="min-width:220px;font-family:system-ui,Inter,Segoe UI,Arial,sans-serif">
-      <div style="font-weight:600;margin-bottom:6px">${esc(spot.street)}</div>
-      <div style="font-size:12px;line-height:1.5;color:#374151">
-        <div><span style="color:#6B7280">Zone:</span> ${esc(spot.zone)}</div>
-        <div><span style="color:#6B7280">Status:</span>
-          <span style="display:inline-block;margin-left:6px;padding:2px 8px;border-radius:9999px;background:${statusColor};color:#fff;font-weight:600;">
-            ${statusText}
-          </span>
-        </div>
-      </div>
-    </div>`
-}
-function attachMarkerPopup(marker, spot){
-  if (!infoWindow) infoWindow = new google.maps.InfoWindow()
-  marker.addListener('click', () => {
-    infoWindow.setContent(formatPopupHTML(spot))
-    // 兼容旧版/新版写法
-    try {
-      infoWindow.open({ map, anchor: marker })
-    } catch {
-      infoWindow.setPosition({ lat: spot.lat, lng: spot.lng })
-      infoWindow.open(map)
-    }
-  })
-}
-
-/* ---------- Markers rendering ---------- */
 function addMarkers (rows) {
   clearMarkers()
-  // 关闭旧弹窗，避免残留
-  infoWindow?.close()
   rows.forEach(spot => {
     const isOcc = String(spot.status || '').toLowerCase() === 'occupied'
     const marker = new google.maps.Marker({
@@ -223,11 +229,8 @@ function addMarkers (rows) {
       icon: isOcc ? ICON_OCCUPIED : ICON_UNOCCUPIED,
       title: `${spot.street} (${spot.zone}) • ${isOcc ? 'Occupied' : 'Unoccupied'}`
     })
-    attachMarkerPopup(marker, spot)
     markers.push(marker)
   })
-  // 点击地图空白处关闭弹窗
-  map.addListener('click', () => infoWindow?.close())
 }
 
 /* ---------- Filtering helpers ---------- */
@@ -256,9 +259,9 @@ function matchesFilters (spot) {
   return true
 }
 
-/* ---------- Apply filters (also draws radius) ---------- */
+/* ---------- Apply filters (draw radius & return count) ---------- */
 function applyFilters () {
-  if (!map) return
+  if (!map) return 0
   const filtered = parkingDataAll.filter(matchesFilters)
   resultsCount.value = filtered.length
   addMarkers(filtered)
@@ -287,9 +290,10 @@ function applyFilters () {
     if (searchCenter.value) bounds.extend(searchCenter.value)
     map.fitBounds(bounds, 60)
   }
+  return filtered.length
 }
 
-/* ---------- Maps loader (no Places lib) ---------- */
+/* ---------- Maps loader (no legacy Places) ---------- */
 let gmapsPromise
 function loadGoogleMaps () {
   if (window.google?.maps) return Promise.resolve()
@@ -321,14 +325,18 @@ function initMap () {
   })
   mapsReady.value = true
   initIcons()
-  applyFilters() // first apply
+  applyFilters() // first apply default filters
 }
 
 /* ---------- Search button (geocode fallback) ---------- */
 async function onSearch () {
   const q = form.keyword?.trim()
   if (!map) return
-  if (!q) { searchCenter.value = null; applyFilters(); return }
+  if (!q) {
+    searchCenter.value = null
+    if (applyFilters() === 0) showSearchError('No matches with current filters.')
+    return
+  }
 
   if (window.google?.maps?.Geocoder) {
     const geocoder = new google.maps.Geocoder()
@@ -340,11 +348,11 @@ async function onSearch () {
       } else {
         searchCenter.value = null
       }
-      applyFilters()
+      if (applyFilters() === 0) showSearchError(`No bays found for “${q}”.`)
     })
   } else {
     searchCenter.value = null
-    applyFilters()
+    if (applyFilters() === 0) showSearchError(`No results for “${q}”.`)
   }
 }
 
@@ -365,7 +373,6 @@ onMounted(async () => {
 })
 onBeforeUnmount(() => {
   clearMarkers()
-  infoWindow?.close()
   if (radiusCircle) radiusCircle.setMap(null)
   map = null
 })
