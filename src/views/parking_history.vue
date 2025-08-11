@@ -21,8 +21,7 @@
           Search
         </button>
       </div>
-
-      <!-- Error message (hidden by default) -->
+      <!-- Error message -->
       <div
         v-show="searchError.visible"
         class="mt-3 rounded-md border border-red-200 bg-red-50 text-red-700 px-3 py-2 text-sm flex items-start gap-2"
@@ -164,10 +163,9 @@ const parkingDataAll = [
 ]
 
 /* ---------- (Placeholder) backend API ---------- */
-// 调后端时替换这里；空结果时仍会触发错误提示
 async function fetchParkingBays(params) {
   // TODO: const { data } = await api.get('/api/bays', { params })
-  const data = [] // 占位：先返回空数组
+  const data = [] // placeholder
   if (!Array.isArray(data) || data.length === 0) {
     showSearchError('No results from server for your query.')
     return []
@@ -190,9 +188,10 @@ const searchCenter = ref(null)
 const searchRadius = ref(1200) // meters
 let radiusCircle = null
 
-/* ---------- Custom Icons ---------- */
+/* ---------- Custom Icons & InfoWindow ---------- */
 let ICON_OCCUPIED, ICON_UNOCCUPIED
 let markers = []
+let infoWindow = null
 
 function makeMarkerIcon (bgColor = '#EF4444', label = 'P', { size = 28 } = {}) {
   const s = size
@@ -219,15 +218,36 @@ function initIcons () {
   ICON_UNOCCUPIED = makeMarkerIcon('#10B981', 'U')
 }
 function clearMarkers () { markers.forEach(m => m.setMap(null)); markers = [] }
+
+/* Popup format：Street / Zone / Status("Present" or "Unoccupied") */
+function formatPopupHTML(spot) {
+  const raw = String(spot.status || '').toLowerCase()
+  const status = raw.includes('occupied') || raw.includes('present') ? 'Present' : 'Unoccupied'
+  return `
+    <div style="font: 13px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; padding:2px 0;">
+      <div style="font-weight:600; color:#111827; margin-bottom:2px;">${spot.street || 'Unknown street'}</div>
+      <div style="color:#374151;">Zone: <span style="font-weight:600">${spot.zone || '—'}</span></div>
+      <div style="color:${status==='Present' ? '#DC2626' : '#059669'}; font-weight:600; margin-top:2px;">
+        ${status}
+      </div>
+    </div>
+  `
+}
+
 function addMarkers (rows) {
   clearMarkers()
+  if (!infoWindow) infoWindow = new google.maps.InfoWindow()
   rows.forEach(spot => {
     const isOcc = String(spot.status || '').toLowerCase() === 'occupied'
     const marker = new google.maps.Marker({
       position: { lat: spot.lat, lng: spot.lng },
       map,
       icon: isOcc ? ICON_OCCUPIED : ICON_UNOCCUPIED,
-      title: `${spot.street} (${spot.zone}) • ${isOcc ? 'Occupied' : 'Unoccupied'}`
+      title: `${spot.street} (${spot.zone})`
+    })
+    marker.addListener('click', () => {
+      infoWindow.setContent(formatPopupHTML(spot))
+      infoWindow.open({ map, anchor: marker })
     })
     markers.push(marker)
   })
@@ -325,7 +345,10 @@ function initMap () {
   })
   mapsReady.value = true
   initIcons()
-  applyFilters() // first apply default filters
+  applyFilters() // first render
+
+  // click map blank area close popup
+  map.addListener('click', () => { if (infoWindow) infoWindow.close() })
 }
 
 /* ---------- Search button (geocode fallback) ---------- */
