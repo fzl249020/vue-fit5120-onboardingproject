@@ -23,12 +23,8 @@
         </button>
       </div>
 
-      <!-- no-results message (hidden by default) -->
-      <div
-        v-show="showSearchMsg"
-        class="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
-        role="alert"
-      >
+      <!-- no-results message -->
+      <div v-show="showSearchMsg" class="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
         {{ searchMsg }}
       </div>
 
@@ -66,12 +62,12 @@
         <button class="px-4 py-2 rounded-md bg-blue-600 text-white text-sm hover:bg-blue-700" @click="applyFilters">
           Apply Filters
         </button>
-        <button class="px-4 py-2 rounded-md border text-sm hover:bg-gray-50" @click="resetFiltersAndReload" :disabled="loadingAll">
-          {{ loadingAll ? 'Resetting…' : 'Reset Filters' }}
+        <button class="px-4 py-2 rounded-md border text-sm hover:bg-gray-50" @click="resetFilters">
+          Reset Filters
         </button>
 
         <span class="text-xs text-gray-500 ml-auto">
-          Showing <strong>{{ resultsCount }}</strong> / {{ parkingDataAll.length }} bays
+          Showing <strong>{{ resultsCount }}</strong> / {{ allTotal }} bays
         </span>
       </div>
     </div>
@@ -84,7 +80,7 @@
         <button class="w-9 h-9 bg-white hover:bg-gray-50" @click="zoomOut">−</button>
       </div>
 
-      <!-- Map canvas -->
+      <!-- canvas -->
       <div ref="mapRef" class="h-[520px] w-full flex items-center justify-center text-gray-400">
         <span v-if="!mapsReady && !loadError" class="text-sm">Loading map…</span>
         <span v-if="loadError" class="text-sm text-red-500">Map failed to load. Check API key.</span>
@@ -94,7 +90,7 @@
 </template>
 
 <script setup>
-import { reactive, ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { reactive, ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import MultiSelect from '../components/MultiSelect.vue'
 
 /* ---------- Select options ---------- */
@@ -135,8 +131,8 @@ function hideSearchMessage() {
   showSearchMsg.value = false
 }
 
-/* ---------- Data (mock; backend will overwrite) ---------- */
-const parkingDataAll = [
+/* ---------- Data source (mock + API 覆盖) ---------- */
+let parkingDataAll = [
   { lat: -37.8150, lng: 144.9650, street: 'Collins St',    zone: 'Z001', status: 'Occupied',   year: 2025, month: 5,  dow: 2, hour: 9  },
   { lat: -37.8140, lng: 144.9630, street: 'Bourke St',     zone: 'Z002', status: 'Unoccupied', year: 2025, month: 5,  dow: 3, hour: 10 },
   { lat: -37.8162, lng: 144.9618, street: 'Elizabeth St',  zone: 'Z003', status: 'occupied',   year: 2024, month: 9,  dow: 4, hour: 9  },
@@ -148,6 +144,7 @@ const parkingDataAll = [
   { lat: -37.8155, lng: 144.9603, street: 'King St',       zone: 'Z009', status: 'Occupied',   year: 2024, month: 9,  dow: 2, hour: 9  },
   { lat: -37.8148, lng: 144.9671, street: 'Russell St',    zone: 'Z010', status: 'Unoccupied', year: 2025, month: 5,  dow: 4, hour: 12 },
 ]
+const allTotal = computed(() => parkingDataAll.length)   // 用于模板显示总量
 
 /* ---------- Map state ---------- */
 const mapRef = ref(null)
@@ -156,14 +153,13 @@ const mapsReady = ref(false)
 const loadError = ref(false)
 const resultsCount = ref(0)
 const GOOGLE_MAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_KEY
-const API_BASE = import.meta.env.VITE_API_BASE // 后端基地址（.env 里配置）
 
-// search circle
+// 搜索圆
 const searchCenter = ref(null)
-const searchRadius = ref(1200) // meters
+const searchRadius = ref(1200) // m
 let radiusCircle = null
 
-/* ---------- Icons / markers / popup ---------- */
+/* ---------- Custom Icons & markers & popup ---------- */
 let ICON_OCCUPIED, ICON_UNOCCUPIED
 let markers = []
 let infoWindow = null
@@ -192,8 +188,6 @@ function initIcons () {
   ICON_OCCUPIED   = makeMarkerIcon('#EF4444', 'P')
   ICON_UNOCCUPIED = makeMarkerIcon('#10B981', 'U')
 }
-function clearMarkers () { markers.forEach(m => m.setMap(null)); markers = [] }
-
 function normalizeStatus(raw) {
   const s = String(raw || '').trim().toLowerCase()
   return (s === 'occupied' || s === 'present') ? 'Present' : 'Unoccupied'
@@ -201,33 +195,33 @@ function normalizeStatus(raw) {
 function formatPopupHTML(spot, normStatus) {
   const status = normStatus ?? normalizeStatus(spot.status)
   return `
-    <div style="font:13px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;padding:2px 0;">
+    <div style="font:13px/1.5 system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial;padding:2px 0;">
       <div style="font-weight:600;color:#111827;margin-bottom:2px;">${spot.street || 'Unknown street'}</div>
       <div style="color:#374151;">Zone: <span style="font-weight:600">${spot.zone || '—'}</span></div>
-      <div style="color:${status === 'Present' ? '#DC2626' : '#059669'};font-weight:600;margin-top:2px;">${status}</div>
+      <div style="color:${status==='Present' ? '#DC2626' : '#059669'};font-weight:600;margin-top:2px;">${status}</div>
     </div>`
 }
+function clearMarkers () { markers.forEach(m => m.setMap(null)); markers = [] }
 function addMarkers (rows) {
   clearMarkers()
   if (!infoWindow) infoWindow = new google.maps.InfoWindow()
   rows.forEach(spot => {
-    const status = normalizeStatus(spot.status)
-    const isOcc  = status === 'Present'
+    const st = normalizeStatus(spot.status)
     const marker = new google.maps.Marker({
       position: { lat: spot.lat, lng: spot.lng },
       map,
-      icon: isOcc ? ICON_OCCUPIED : ICON_UNOCCUPIED,
+      icon: st === 'Present' ? ICON_OCCUPIED : ICON_UNOCCUPIED,
       title: `${spot.street} (${spot.zone})`
     })
     marker.addListener('click', () => {
-      infoWindow.setContent(formatPopupHTML(spot, status))
+      infoWindow.setContent(formatPopupHTML(spot, st))
       infoWindow.open({ map, anchor: marker })
     })
     markers.push(marker)
   })
 }
 
-/* ---------- Filtering ---------- */
+/* ---------- Filtering (本地兜底) ---------- */
 function toRad (d) { return d * Math.PI / 180 }
 function distanceMeters (a, b) {
   const R = 6371000, dLat = toRad(b.lat - a.lat), dLng = toRad(b.lng - a.lng)
@@ -240,7 +234,6 @@ function matchesFilters (spot) {
   if (form.months.length && !form.months.includes(spot.month)) return false
   if (form.days.length   && !form.days.includes(spot.dow))     return false
   if (typeof form.hour === 'number' && spot.hour !== form.hour) return false
-
   if (form.keyword && form.keyword.trim()) {
     const kw = form.keyword.trim().toLowerCase()
     const ok = (spot.street||'').toLowerCase().includes(kw) || (spot.zone||'').toLowerCase().includes(kw)
@@ -252,13 +245,63 @@ function matchesFilters (spot) {
   }
   return true
 }
-function applyFilters () {
-  if (!map) return
-  const filtered = parkingDataAll.filter(matchesFilters)
-  resultsCount.value = filtered.length
-  addMarkers(filtered)
 
-  // radius
+/* ---------- API helpers（内嵌，不新建文件） ---------- */
+const API_BASE = import.meta.env.VITE_API_BASE
+const hasApi   = !!API_BASE
+
+function buildQS(obj={}) {
+  const p = new URLSearchParams()
+  Object.entries(obj).forEach(([k,v])=>{
+    if (v==null || v==='') return
+    if (Array.isArray(v)) { if (v.length) p.set(k, v.join(',')) }
+    else p.set(k, String(v))
+  })
+  return p.toString()
+}
+async function apiGet(path, params) {
+  const url = `${API_BASE}${path}${params ? ('?' + buildQS(params)) : ''}`
+  const r = await fetch(url)
+  if (!r.ok) throw new Error(`HTTP ${r.status}`)
+  return await r.json()
+}
+async function fetchAllFromApi() {
+  if (!hasApi) return null
+  try {
+    const data = await apiGet('/api/parking/bays')
+    return Array.isArray(data) ? data : []
+  } catch { return null }
+}
+async function searchFromApi(q) {
+  if (!hasApi) return null
+  try {
+    const data = await apiGet('/api/parking/search', { q })
+    return Array.isArray(data) ? data : []
+  } catch { return null }
+}
+async function filterFromApi() {
+  if (!hasApi) return null
+  try {
+    const params = {
+      years: form.years, months: form.months, days: form.days, hour: form.hour,
+      center: searchCenter.value ? `${searchCenter.value.lat},${searchCenter.value.lng}` : '',
+      radius: searchCenter.value ? searchRadius.value : ''
+    }
+    const data = await apiGet('/api/parking/bays', params)
+    return Array.isArray(data) ? data : []
+  } catch { return null }
+}
+
+/* ---------- 应用筛选（优先后端，失败回退本地） ---------- */
+async function applyFilters () {
+  if (!map) return
+  let rows = await filterFromApi()
+  if (!rows) rows = parkingDataAll.filter(matchesFilters)
+
+  resultsCount.value = rows.length
+  addMarkers(rows)
+
+  // 圆
   if (searchCenter.value) {
     if (!radiusCircle) {
       radiusCircle = new google.maps.Circle({
@@ -275,10 +318,9 @@ function applyFilters () {
     radiusCircle.setMap(null)
   }
 
-  // fit
-  if (filtered.length) {
+  if (rows.length) {
     const bounds = new google.maps.LatLngBounds()
-    filtered.forEach(p => bounds.extend({ lat: p.lat, lng: p.lng }))
+    rows.forEach(p => bounds.extend({ lat: p.lat, lng: p.lng }))
     if (searchCenter.value) bounds.extend(searchCenter.value)
     map.fitBounds(bounds, 60)
   } else {
@@ -286,23 +328,33 @@ function applyFilters () {
   }
 }
 
-/* ---------- Maps loader ---------- */
+/* ---------- 加载完整数据集（用于 reset / 首次加载） ---------- */
+async function loadAllDefault() {
+  // 先试后端
+  const apiRows = await fetchAllFromApi()
+  if (apiRows && apiRows.length) {
+    parkingDataAll = apiRows   // 用后端数据覆盖本地 demo
+  }
+  resultsCount.value = parkingDataAll.length
+  addMarkers(parkingDataAll)
+
+  const bounds = new google.maps.LatLngBounds()
+  parkingDataAll.forEach(p => bounds.extend({ lat: p.lat, lng: p.lng }))
+  if (!bounds.isEmpty()) map.fitBounds(bounds, 60)
+}
+
+/* ---------- Maps loader（不加载 Places 避免授权警告） ---------- */
 let gmapsPromise
 function loadGoogleMaps () {
   if (window.google?.maps) return Promise.resolve()
-  const KEY = GOOGLE_MAPS_KEY || (window.__GMAPS_KEY ?? '')
-  if (!KEY) return Promise.reject(new Error('Missing VITE_GOOGLE_MAPS_KEY'))
-
+  if (!GOOGLE_MAPS_KEY) return Promise.reject(new Error('Missing VITE_GOOGLE_MAPS_KEY'))
   if (!gmapsPromise) {
     gmapsPromise = new Promise((resolve, reject) => {
       const s = document.createElement('script')
-      s.src = `https://maps.googleapis.com/maps/api/js?key=${KEY}&v=weekly`
+      s.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_KEY}&v=weekly`
       s.async = true; s.defer = true
       s.onerror = () => reject(new Error('Failed to load Google Maps'))
-      s.onload  = () => {
-        const wait = () => (window.google?.maps ? resolve() : setTimeout(wait, 30))
-        wait()
-      }
+      s.onload  = () => { const wait=()=>window.google?.maps?resolve():setTimeout(wait,30); wait() }
       document.head.appendChild(s)
     })
   }
@@ -319,19 +371,34 @@ function initMap () {
   mapsReady.value = true
   infoWindow = new google.maps.InfoWindow()
   initIcons()
-  applyFilters()
-
-  // click map blank to close info window
   map.addListener('click', () => infoWindow?.close())
 }
 
-/* ---------- Search (geocode; API placeholder) ---------- */
+/* ---------- Search（优先后端，其次前端 geocode） ---------- */
 async function onSearch () {
   hideSearchMessage()
-  const q = form.keyword?.trim()
+  const q = form.keyword?.trim() || ''
   if (!map) return
-  if (!q) { searchCenter.value = null; applyFilters(); return }
 
+  if (!q) { searchCenter.value = null; await loadAllDefault(); return }
+
+  // 1) 后端搜索
+  const apiRows = await searchFromApi(q)
+  if (apiRows && apiRows.length) {
+    searchCenter.value = null
+    resultsCount.value = apiRows.length
+    addMarkers(apiRows)
+    const b = new google.maps.LatLngBounds()
+    apiRows.forEach(p => b.extend({lat:p.lat,lng:p.lng}))
+    if (!b.isEmpty()) map.fitBounds(b, 60)
+    return
+  }
+  if (apiRows && apiRows.length === 0) {
+    showSearchMessage('No results found for your search.')
+    return
+  }
+
+  // 2) 无后端或失败 => geocode 兜底
   if (window.google?.maps?.Geocoder) {
     const geocoder = new google.maps.Geocoder()
     geocoder.geocode({ address: q, componentRestrictions: { country: 'AU' } }, (res, status) => {
@@ -339,12 +406,11 @@ async function onSearch () {
         const loc = res[0].geometry.location
         searchCenter.value = { lat: loc.lat(), lng: loc.lng() }
         map.panTo(searchCenter.value); map.setZoom(15)
-        applyFilters()
       } else {
         searchCenter.value = null
-        applyFilters()
         showSearchMessage('No results found for your search.')
       }
+      applyFilters()
     })
   } else {
     searchCenter.value = null
@@ -353,10 +419,11 @@ async function onSearch () {
   }
 }
 
-/* ---------- Reset & reload all (no filters) ---------- */
-const loadingAll = ref(false)
-async function resetFiltersAndReload () {
-  // 1) reset UI
+/* ---------- Map utils & Reset ---------- */
+const zoomIn  = () => map && map.setZoom(map.getZoom() + 1)
+const zoomOut = () => map && map.setZoom(map.getZoom() - 1)
+
+async function resetFilters () {
   form.keyword = ''
   form.years   = [2025, 2024]
   form.months  = monthOptions.map(m => m.value)
@@ -364,49 +431,8 @@ async function resetFiltersAndReload () {
   form.hour    = 9
   searchCenter.value = null
   hideSearchMessage()
-  if (radiusCircle) { radiusCircle.setMap(null); radiusCircle = null }
-  if (infoWindow) infoWindow.close()
-
-  // 2) fetch all without any params
-  loadingAll.value = true
-  try {
-    if (!API_BASE) throw new Error('No API base configured')
-    const resp = await fetch(`${API_BASE}/api/parking/bays`, { method: 'GET' })
-    if (resp.ok) {
-      const data = await resp.json()
-      if (Array.isArray(data) && data.length) {
-        // cover all data source (keep array reference unchanged for template usage)
-        parkingDataAll.splice(0, parkingDataAll.length, ...data)
-      } else {
-        // empty data
-        parkingDataAll.splice(0, parkingDataAll.length)
-        clearMarkers()
-        resultsCount.value = 0
-        showSearchMessage('No parking bays available.')
-      }
-    } else {
-      // non-2xx: keep local mock and show light prompt
-      showSearchMessage('Failed to reload all bays (server error).')
-    }
-  } catch (e) {
-    // network/unconfigured API: silently fall back to local mock
-    console.warn('Reload all bays failed, using local mock.', e)
-  } finally {
-    loadingAll.value = false
-    // 3) render
-    applyFilters()
-    // if (parkingDataAll.length) {
-    if (parkingDataAll.length) {
-      const bounds = new google.maps.LatLngBounds()
-      parkingDataAll.forEach(p => bounds.extend({ lat: p.lat, lng: p.lng }))
-      map.fitBounds(bounds, 60)
-    }
-  }
+  await loadAllDefault()          // 关键：重置后重新请求“完整默认数据集”
 }
-
-/* ---------- Map utils ---------- */
-const zoomIn  = () => map && map.setZoom(map.getZoom() + 1)
-const zoomOut = () => map && map.setZoom(map.getZoom() - 1)
 
 /* ---------- Lifecycle ---------- */
 onMounted(async () => {
@@ -414,6 +440,7 @@ onMounted(async () => {
     await loadGoogleMaps()
     await nextTick()
     initMap()
+    await loadAllDefault()        // 首次加载全量数据
   } catch (e) {
     console.error('[Maps load failed]', e)
     loadError.value = true
