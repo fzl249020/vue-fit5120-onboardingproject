@@ -5,8 +5,8 @@
       <nav class="max-w-6xl mx-auto flex items-center justify-between h-16 px-4">
         <!-- left logo + title -->
         <router-link to="/" class="flex items-center gap-2">
-          <img src="/images/logo.png" alt="logo" class="w-7 h-7" />
-          <span class="text-lg font-semibold">Melbourne Parking</span>
+          <img src="/images/logo.jpg" alt="logo" class="w-7 h-7" />
+          <span class="text-lg font-semibold">ParkPulse & Co.</span>
         </router-link>
 
         <!-- right menu -->
@@ -66,9 +66,7 @@
                   <router-link to="/features/car-ownership" class="block px-4 py-3 hover:bg-gray-50">
                     Car Ownership Trends
                   </router-link>
-                  <router-link to="/features/cbd-population" class="block px-4 py-3 hover:bg-gray-50">
-                    CBD Population Trends
-                  </router-link>
+                 
                 </div>
               </div>
 
@@ -99,7 +97,7 @@
     <!-- footer -->
     <footer class="border-t bg-white/90">
       <div class="max-w-6xl mx-auto px-4 py-6 text-xs text-gray-500">
-        © {{ new Date().getFullYear() }} Melbourne Parking — All rights reserved.
+        © {{ new Date().getFullYear() }} ParkPulse & Co. — All rights reserved.
       </div>
     </footer>
   </div>

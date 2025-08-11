@@ -8,8 +8,7 @@
         {{ chartTitle }}
       </h1>
       <div class="flex items-center gap-3">
-        <!-- Compare：switch with label -->
-        <ToggleSwitch v-model="compare" label="Compare" />
+        
 
         <!-- Share button -->
         <button
