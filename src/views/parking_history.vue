@@ -86,7 +86,7 @@
 </template>
 
 <script setup>
-import { reactive, ref, onMounted, onBeforeUnmount } from 'vue'
+import { reactive, ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import breadcrumbs from '../components/breadcrumbs.vue'
 import MultiSelect from '../components/MultiSelect.vue'
 
@@ -244,7 +244,6 @@ async function onSearch() {
 const zoomIn  = () => map && map.setZoom(map.getZoom() + 1)
 const zoomOut = () => map && map.setZoom(map.getZoom() - 1)
 
-import { onMounted, onBeforeUnmount, nextTick } from 'vue'
 
 onMounted(async () => {
   try {
