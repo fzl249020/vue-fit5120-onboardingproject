@@ -23,23 +23,23 @@
         <h2 class="text-2xl font-bold mb-6">Our Team</h2>
         <div class="flex justify-around items-center flex-wrap gap-6">
           <div class="flex flex-col items-center">
-            <img src="/images/Deekshita%20Sridhar.png" alt="Deekshita Sridhar" class="w-28 h-28 rounded-full object-cover" />
+            <img src="/images/Deekshita_Sridhar.png" alt="Deekshita Sridhar" class="w-28 h-28 rounded-full object-cover" />
             <span class="mt-2 font-semibold text-center">Deekshita Sridhar</span>
           </div>
           <div class="flex flex-col items-center">
-            <img src="/images/Jinyang%20Zheng.png" alt="Jinyang Zheng" class="w-28 h-28 rounded-full object-cover" />
+            <img src="/images/Jinyang_Zheng.png" alt="Jinyang Zheng" class="w-28 h-28 rounded-full object-cover" />
             <span class="mt-2 font-semibold text-center">Jinyang Zheng</span>
           </div>
           <div class="flex flex-col items-center">
-            <img src="/images/Neppalli%20Sriteysha.png" alt="Neppalli Sriteysha" class="w-28 h-28 rounded-full object-cover" />
+            <img src="/images/Neppalli_Sriteysha.png" alt="Neppalli Sriteysha" class="w-28 h-28 rounded-full object-cover" />
             <span class="mt-2 font-semibold text-center">Neppalli Sriteysha</span>
           </div>
           <div class="flex flex-col items-center">
-            <img src="/images/Tengyu%20Zhang.png" alt="Tengyu Zhang" class="w-28 h-28 rounded-full object-cover" />
+            <img src="/images/Tengyu_Zhang.png" alt="Tengyu Zhang" class="w-28 h-28 rounded-full object-cover" />
             <span class="mt-2 font-semibold text-center">Tengyu Zhang</span>
           </div>
           <div class="flex flex-col items-center">
-            <img src="/images/Zhenglin%20Fang.png" alt="Zhenglin Fang" class="w-28 h-28 rounded-full object-cover" />
+            <img src="/images/Zhenglin_Fang.png" alt="Zhenglin Fang" class="w-28 h-28 rounded-full object-cover" />
             <span class="mt-2 font-semibold text-center">Zhenglin Fang</span>
           </div>
         </div>
