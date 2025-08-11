@@ -22,37 +22,25 @@
       </div>
     </div>
 
-    <!-- Filter Section (Year / Month / Day unified multi-select dropdown) -->
+    <!-- Filter Section -->
     <div class="bg-white rounded-xl border shadow-sm p-4 md:p-5 mb-5">
       <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
         <!-- Year -->
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-2">Year</label>
-          <MultiSelect
-            v-model="form.years"
-            :items="yearOptions"
-            placeholder="Select years"
-          />
+          <MultiSelect v-model="form.years" :items="yearOptions" placeholder="Select years" />
         </div>
 
         <!-- Month -->
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-2">Month</label>
-          <MultiSelect
-            v-model="form.months"
-            :items="monthOptions"
-            placeholder="Select months"
-          />
+          <MultiSelect v-model="form.months" :items="monthOptions" placeholder="Select months" />
         </div>
 
         <!-- Day of Week -->
         <div class="md:col-span-2">
           <label class="block text-sm font-medium text-gray-700 mb-2">Day of Week</label>
-          <MultiSelect
-            v-model="form.days"
-            :items="dayOptions"
-            placeholder="Select days"
-          />
+          <MultiSelect v-model="form.days" :items="dayOptions" placeholder="Select days" />
         </div>
 
         <!-- Time -->
@@ -80,21 +68,24 @@
       </div>
     </div>
 
-    <!-- Map placeholder -->
+    <!-- Map -->
     <div class="relative rounded-xl border bg-white overflow-hidden">
-      <div class="absolute left-3 top-3 z-10 flex flex-col shadow">
-        <button class="w-9 h-9 bg-white border-b hover:bg-gray-50">+</button>
-        <button class="w-9 h-9 bg-white hover:bg-gray-50">−</button>
+      <!-- Zoom controls -->
+      <div class="absolute left-3 top-3 z-10 flex flex-col rounded shadow overflow-hidden">
+        <button class="w-9 h-9 bg-white border-b hover:bg-gray-50" @click="zoomIn">+</button>
+        <button class="w-9 h-9 bg-white hover:bg-gray-50" @click="zoomOut">−</button>
       </div>
-      <div class="h-[520px] flex items-center justify-center text-gray-400">
-        <span class="text-sm">Map placeholder — integrate Leaflet / Mapbox / Google Maps later</span>
+      <!-- Map canvas -->
+      <div ref="mapRef" class="h-[520px] w-full flex items-center justify-center text-gray-400">
+        <span v-if="!mapsReady && !loadError" class="text-sm">Loading map…</span>
+        <span v-if="loadError" class="text-sm text-red-500">Map failed to load. Check API key.</span>
       </div>
     </div>
   </section>
 </template>
 
 <script setup>
-import { reactive } from 'vue'
+import { reactive, ref, onMounted, onBeforeUnmount } from 'vue'
 import breadcrumbs from '../components/breadcrumbs.vue'
 import MultiSelect from '../components/MultiSelect.vue'
 
@@ -104,7 +95,7 @@ const crumbs = [
   { text: 'Parking History' }
 ]
 
-// options { value, label }）
+// options { value, label }
 const yearOptions  = [2022, 2023, 2024, 2025].map(y => ({ value: y, label: String(y) }))
 const monthOptions = [
   { value: 1, label: 'Jan' }, { value: 2, label: 'Feb' }, { value: 3, label: 'Mar' },
@@ -117,12 +108,12 @@ const dayOptions   = [
   { value: 4, label: 'Thu' }, { value: 5, label: 'Fri' }, { value: 6, label: 'Sat' }, { value: 0, label: 'Sun' }
 ]
 
-// form state (multi-select uses arrays; month defaults to all selected)
+// form state
 const form = reactive({
   keyword: '',
-  years: [2025, 2023],                     // default selected years
-  months: monthOptions.map(m => m.value),  // default to all selected (All)
-  days: [1,2,3,4,5],                       // default to weekdays
+  years: [2025, 2023],
+  months: monthOptions.map(m => m.value),
+  days: [1,2,3,4,5],
   hour: 9,
   minute: 0
 })
@@ -132,7 +123,7 @@ const pad = (n) => String(n).padStart(2, '0')
 const resetFilters = () => {
   form.keyword = ''
   form.years   = [2025]
-  form.months  = monthOptions.map(m => m.value) // restore to "all selected"
+  form.months  = monthOptions.map(m => m.value)
   form.days    = [1,2,3,4,5]
   form.hour    = 9
   form.minute  = 0
@@ -144,6 +135,83 @@ const onSearch = () => {
 
 const applyFilters = () => {
   // TODO: send form to backend or use for frontend filtering
-  // console.log(JSON.parse(JSON.stringify(form)))
 }
+
+// ===== Google Map =====
+const mapRef = ref(null)
+let map
+const mapsReady = ref(false)
+const loadError = ref(false)
+const GOOGLE_MAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_KEY
+
+// 只加载一次 Google Maps 脚本
+let gmapsPromise
+function loadGoogleMaps() {
+  if (window.google?.maps) return Promise.resolve()
+  if (!GOOGLE_MAPS_KEY) {
+    console.warn('Missing VITE_GOOGLE_MAPS_KEY')
+    loadError.value = true
+    return Promise.reject(new Error('Missing API key'))
+  }
+  if (!gmapsPromise) {
+    gmapsPromise = new Promise((resolve, reject) => {
+      const script = document.createElement('script')
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_KEY}`
+      script.async = true
+      script.onerror = () => reject(new Error('Failed to load Google Maps'))
+      script.onload = () => resolve()
+      document.head.appendChild(script)
+    })
+  }
+  return gmapsPromise
+}
+
+function initMap() {
+  if (!mapRef.value || !window.google?.maps) return
+  map = new window.google.maps.Map(mapRef.value, {
+    center: { lat: -37.8136, lng: 144.9631 },
+    zoom: 15,
+    mapTypeControl: false,
+    streetViewControl: false,
+    fullscreenControl: false
+  })
+  mapsReady.value = true
+
+  // dummy markers
+  const parkingData = [
+    { lat: -37.815, lng: 144.965, street: 'Collins St', zone: 'Z001', status: 'Occupied' },
+    { lat: -37.814, lng: 144.963, street: 'Bourke St',  zone: 'Z002', status: 'Unoccupied' }
+  ]
+  parkingData.forEach(spot => {
+    new window.google.maps.Marker({
+      position: { lat: spot.lat, lng: spot.lng },
+      map,
+      icon: {
+        path: window.google.maps.SymbolPath.CIRCLE,
+        scale: 8,
+        fillColor: spot.status === 'Occupied' ? 'red' : 'green',
+        fillOpacity: 1,
+        strokeWeight: 0
+      },
+      title: `${spot.street} (${spot.zone})`
+    })
+  })
+}
+
+const zoomIn  = () => map && map.setZoom(map.getZoom() + 1)
+const zoomOut = () => map && map.setZoom(map.getZoom() - 1)
+
+onMounted(async () => {
+  try {
+    await loadGoogleMaps()
+    initMap()
+  } catch (e) {
+    loadError.value = true
+  }
+})
+
+onBeforeUnmount(() => {
+  // 释放引用，避免热更新/路由切换的内存泄漏
+  map = null
+})
 </script>
