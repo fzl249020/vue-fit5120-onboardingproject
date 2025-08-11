@@ -142,61 +142,6 @@ const mapsReady = ref(false)
 const loadError = ref(false)
 const GOOGLE_MAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_KEY
 
-// 自定义图标（红 P / 绿 U）
-let ICON_OCCUPIED, ICON_UNOCCUPIED
-let markers = []
-
-function makeMarkerIcon(bgColor = '#EF4444', label = 'P', { size = 28 } = {}) {
-  const s = size
-  const r = Math.round(s * 0.5)
-  const font = Math.round(s * 0.6)
-  const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 ${s} ${s}">
-      <defs>
-        <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
-          <feDropShadow dx="0" dy="1" stdDeviation="1.2" flood-color="rgba(0,0,0,0.25)"/>
-        </filter>
-      </defs>
-      <circle cx="${r}" cy="${r}" r="${Math.round(s*0.48)}" fill="${bgColor}" filter="url(#shadow)"/>
-      <text x="50%" y="50%" text-anchor="middle" dominant-baseline="central"
-            font-family="Inter,system-ui,Arial" font-size="${font}" font-weight="700" fill="#fff">
-        ${String(label).toUpperCase()}
-      </text>
-    </svg>`
-  const url = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`
-  return {
-    url,
-    scaledSize: new google.maps.Size(s, s),
-    anchor: new google.maps.Point(s / 2, s / 2),
-  }
-}
-
-function initIcons() {
-  ICON_OCCUPIED   = makeMarkerIcon('#EF4444', 'P') // 红 P
-  ICON_UNOCCUPIED = makeMarkerIcon('#10B981', 'U') // 绿 U
-}
-
-function clearMarkers() {
-  markers.forEach(m => m.setMap(null))
-  markers = []
-}
-
-/** 根据 status 应用图标 */
-function applyParkingMarkers(parkingData = []) {
-  if (!map || !window.google?.maps) return
-  clearMarkers()
-  parkingData.forEach(spot => {
-    const isOcc = String(spot.status || '').toLowerCase() === 'occupied'
-    const marker = new google.maps.Marker({
-      position: { lat: spot.lat, lng: spot.lng },
-      map,
-      icon: isOcc ? ICON_OCCUPIED : ICON_UNOCCUPIED,
-      title: `${spot.street} (${spot.zone}) • ${isOcc ? 'Occupied' : 'Unoccupied'}`
-    })
-    markers.push(marker)
-  })
-}
-
 // 只加载一次 Google Maps 脚本（带 places 库，async + weekly）
 let gmapsPromise
 function loadGoogleMaps() {
@@ -223,6 +168,8 @@ function loadGoogleMaps() {
 function initAutocomplete() {
   const input = searchInput.value
   if (!input || !window.google?.maps) return
+
+  // 旧版 Autocomplete 可用则使用，不可用就降级到按钮 Geocoder
   if (window.google.maps.places?.Autocomplete) {
     const ac = new google.maps.places.Autocomplete(input, { fields: ['geometry', 'name'] })
     ac.addListener('place_changed', () => {
@@ -247,22 +194,28 @@ function initMap() {
   })
   mapsReady.value = true
 
-  // 绑定自动补全
+  // Autocomplete 绑定到搜索框
   initAutocomplete()
 
-  // 初始化自定义图标
-  initIcons()
-
-  // 示例数据（后续换成你的后端返回即可）
+  // dummy markers（示例）
   const parkingData = [
     { lat: -37.815, lng: 144.965, street: 'Collins St', zone: 'Z001', status: 'Occupied' },
-    { lat: -37.814, lng: 144.963, street: 'Bourke St',  zone: 'Z002', status: 'Unoccupied' },
-    { lat: -37.816, lng: 144.961, street: 'Elizabeth St',  zone: 'Z003', status: 'occupied' },
-    { lat: -37.817, lng: 144.966, street: 'Queen St',  zone: 'Z004', status: 'unoccupied' },
+    { lat: -37.814, lng: 144.963, street: 'Bourke St',  zone: 'Z002', status: 'Unoccupied' }
   ]
-
-  // 渲染标记（按 status 应用红P/绿U）
-  applyParkingMarkers(parkingData)
+  parkingData.forEach(spot => {
+    new window.google.maps.Marker({
+      position: { lat: spot.lat, lng: spot.lng },
+      map,
+      icon: {
+        path: window.google.maps.SymbolPath.CIRCLE,
+        scale: 8,
+        fillColor: spot.status === 'Occupied' ? 'red' : 'green',
+        fillOpacity: 1,
+        strokeWeight: 0
+      },
+      title: `${spot.street} (${spot.zone})`
+    })
+  })
 }
 
 // Search 按钮兜底：用 Geocoder 把输入文本定位
@@ -284,8 +237,8 @@ const zoomOut = () => map && map.setZoom(map.getZoom() - 1)
 
 onMounted(async () => {
   try {
-    await loadGoogleMaps()
-    await nextTick()
+    await loadGoogleMaps() // 先等库加载
+    await nextTick()       // 再确保 input 等 DOM 已就绪
     initMap()
   } catch (e) {
     loadError.value = true
@@ -293,7 +246,6 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
-  clearMarkers()
   map = null
   autocomplete = null
 })
