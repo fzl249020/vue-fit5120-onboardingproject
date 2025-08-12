@@ -18,7 +18,7 @@
         <p class="text-lg">{{ section.content }}</p>
       </div>
 
-      <!-- Our Team Section (5 people, 原版静态写法) -->
+      <!-- Our Team Section  -->
       <div class="bg-white bg-opacity-90 p-6 rounded shadow">
         <h2 class="text-2xl font-bold mb-6">Our Team</h2>
         <div class="flex justify-around items-center flex-wrap gap-6">

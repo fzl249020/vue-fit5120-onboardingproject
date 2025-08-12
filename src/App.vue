@@ -82,9 +82,9 @@
             </div>
           </li>
 
-          <li>
+          <!-- <li>
             <router-link to="/contact" class="hover:opacity-80" :class="linkClass('/contact')">Contact</router-link>
-          </li>
+          </li> -->
         </ul>
       </nav>
     </header>
