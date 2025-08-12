@@ -19,7 +19,7 @@
       </div>
 
       <!-- Our Team Section  -->
-      <div class="bg-white bg-opacity-90 p-6 rounded shadow">
+      <!-- <div class="bg-white bg-opacity-90 p-6 rounded shadow">
         <h2 class="text-2xl font-bold mb-6">Our Team</h2>
         <div class="flex justify-around items-center flex-wrap gap-6">
           <div class="flex flex-col items-center">
@@ -43,7 +43,7 @@
             <span class="mt-2 font-semibold text-center">Zhenglin Fang</span>
           </div>
         </div>
-      </div>
+      </div> -->
     </div>
   </div>
 </template>
@@ -52,11 +52,11 @@
 const bgUser = new URL('../assets/user.png', import.meta.url).href
 
 // team images in src/assets/team/
-const imgDeekshita = new URL('../assets/team/Deekshita Sridhar.png', import.meta.url).href
-const imgJinyang   = new URL('../assets/team/Jinyang Zheng.png', import.meta.url).href
-const imgSriteysha = new URL('../assets/team/Neppalli Srityesha.png', import.meta.url).href
-const imgTengyu    = new URL('../assets/team/Tengyu Zhang.png', import.meta.url).href
-const imgZhenglin  = new URL('../assets/team/Zhenglin Fang.png', import.meta.url).href
+// const imgDeekshita = new URL('../assets/team/Deekshita Sridhar.png', import.meta.url).href
+// const imgJinyang   = new URL('../assets/team/Jinyang Zheng.png', import.meta.url).href
+// const imgSriteysha = new URL('../assets/team/Neppalli Srityesha.png', import.meta.url).href
+// const imgTengyu    = new URL('../assets/team/Tengyu Zhang.png', import.meta.url).href
+// const imgZhenglin  = new URL('../assets/team/Zhenglin Fang.png', import.meta.url).href
 
 const sections = [
   {
