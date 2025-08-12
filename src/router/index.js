@@ -6,7 +6,7 @@ import About from '../views/about.vue'
 
 const routes = [
   { path: '/', component: Home },
-  { path: '/contact', component: Contact },
+  // { path: '/contact', component: Contact },
   { path: '/features', component: Feature },
   { path: '/about', component: About },
   { path: '/features/car-ownership', component: () => import('../views/car_ownership.vue') },
