@@ -49,9 +49,7 @@
     <section class="mt-8 max-w-3xl mx-auto">
       <h2 class="text-xl font-semibold mb-2">Impact Summary</h2>
       <p class="text-gray-700 leading-7">
-        Estimated quarterly values indicate a mid-2020 softness, with Q2–Q3 showing a dip and a stronger rebound in Q4.
-        Registrations continue to improve through 2021, ending above 2020 levels. This rebound implies rising road
-        congestion and increasing parking pressure in the CBD, especially during peak periods.
+        Estimated quarterly values indicate a mid-2020 softness, with Q2–Q3 showing a dip largely due to the impacts of the COVID-19 pandemic and associated restrictions, followed by a stronger rebound in Q4. Registrations continued to improve through 2021, ending above 2020 levels. This rebound implies rising road congestion and increasing parking pressure in the CBD, especially during peak periods.
       </p>
     </section>
   </section>
@@ -165,13 +163,13 @@ onMounted(async () => {
 
 /** send data to chart */
 const series = computed(() => {
-  const car = { name: 'Car Ownership (Index)', color: '#0B4F9C', data: carData.value }
+  const car = { name: 'Estimated Added Vehicles', color: '#0B4F9C', data: carData.value }
   if (!compare.value) return [car]
-  const pop = { name: 'Population (Index)', color: '#F59E0B', data: popData.value }
+  const pop = { name: 'Population (for reference)', color: '#F59E0B', data: popData.value }
   return [car, pop]
 })
 const yLabel = computed(() =>
-  compare.value ? 'Indexed (2016-Q1 = 100)' : 'Registered Vehicles (Indexed, 2016-Q1 = 100)'
+  'Estimated Added Vehicles'
 )
 
 /** share */

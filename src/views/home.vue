@@ -10,10 +10,7 @@ const bgCity = new URL('../assets/city.png', import.meta.url).href
     <!-- content area -->
     <div class="relative z-10 flex flex-col items-center justify-center min-h-screen text-white text-center px-4">
       <h1 class="text-4xl font-extrabold drop-shadow-lg mb-6">Find a Parking Spot in Melbourne</h1>
-      <div class="flex gap-2 mb-8">
-        <input type="text" placeholder="Enter your destination..." class="px-4 py-2 rounded border border-gray-300 text-black w-64" />
-        <button class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">Find Parking</button>
-      </div>
+      
       <!-- put grid below the search bar -->
       <section class="max-w-6xl mx-auto mt-8 grid grid-cols-1 md:grid-cols-3 gap-6 px-4">
         <!-- card 1 -->

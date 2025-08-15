@@ -36,27 +36,32 @@ const buildOption = () => ({
     : undefined,
 
   tooltip: {
-    trigger: 'axis',
-    backgroundColor: '#374151', // dark grey
-    borderColor: '#374151',
-    textStyle: { color: '#fff' },
-    axisPointer: { type: 'line' },
-    formatter: (params) => {
-      const quarter = params[0]?.axisValue || ''
-      const primary = params.find(p => p.seriesIndex === 0) || params[0]
-      const idx = primary?.data?.index ?? primary?.data ?? 0
-      const added = primary?.data?.added ?? 0
-      let html = `Quarter: ${quarter}<br/>Index: ${(+idx).toFixed(2)}<br/>Est. added: ${(added || 0).toLocaleString()}`
-      if (params.length > 1) {
-        for (let i = 1; i < params.length; i++) {
-          const it = params[i]
-          const v = it?.data?.index ?? it?.data ?? 0
-          html += `<br/>${it.seriesName}: ${(+v).toFixed(2)}`
-        }
-      }
-      return html
+  trigger: 'axis',
+  backgroundColor: '#374151',
+  borderColor: '#374151',
+  textStyle: { color: '#fff' },
+  axisPointer: { type: 'line' },
+  formatter: (params) => {
+    const quarter = params[0]?.axisValue || '';
+    // primary point
+    const primary = params[0];
+    const primaryVal = typeof primary?.data === 'object'
+      ? (primary.data.added ?? primary.data.value ?? primary.value)
+      : primary?.value;
+
+    let html = `Quarter: ${quarter}<br/>Estimated Added Vehicles: ${Number(primaryVal || 0).toLocaleString()}`;
+
+    // additional series (if legend is on)
+    for (let i = 1; i < params.length; i++) {
+      const it = params[i];
+      const v = typeof it.data === 'object'
+        ? (it.data.added ?? it.data.value ?? it.value)
+        : it.value;
+      html += `<br/>${it.seriesName}: ${Number(v || 0).toLocaleString()}`;
     }
-  },
+    return html;
+  }
+},
 
   // when showLegend is true, display legend at the bottom
   grid: { left: 80, right: 24, top: props.title ? 64 : 40, bottom: props.showLegend ? 80 : 56 },
@@ -106,7 +111,7 @@ const buildOption = () => ({
         borderWidth: 2, borderColor: s.color, color: '#ffffff'
       }
     },
-    data: s.data.map(d => ({ value: d.index, index: d.index, added: d.added }))
+    data: s.data.map(d => ({ value: d.added, added: d.added }))
   }))
 })
 
